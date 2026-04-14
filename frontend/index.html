@@ -1,0 +1,506 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micks Musikkiste - Lokales AI-Musikstudio</title>
+    <link rel="stylesheet" href="/static/styles/main.css">
+</head>
+<body>
+    <div id="app" class="app">
+        <nav class="topbar">
+            <div class="topbar-content">
+                <div class="topbar-left">
+                    <h1 class="app-title">Micks Musikkiste</h1>
+                </div>
+                <div class="topbar-nav">
+                    <button class="nav-btn active" data-page="dashboard">Start</button>
+                    <button class="nav-btn" data-mode="techno_beat">Techno Beat</button>
+                    <button class="nav-btn" data-mode="hiphop_beat">Hip-Hop Beat</button>
+                    <button class="nav-btn" data-mode="full_track">Voller Track</button>
+                    <button class="nav-btn" data-page="projects">Projekte</button>
+                    <button class="nav-btn" data-page="status">Status</button>
+                </div>
+                <div class="topbar-right">
+                    <span class="system-status" id="systemStatus">• Lädt...</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-container">
+            <section id="page-dashboard" class="page active">
+                <div class="hero">
+                    <h2>Willkommen zu Micks Musikkiste</h2>
+                    <p>Wähle einen klaren Startmodus und komm schnell zum ersten brauchbaren Ergebnis.</p>
+                </div>
+
+                <div class="quick-start-panel">
+                    <h3>Schnellstart</h3>
+                    <p class="quick-start-copy">Drei Modi für normale Nutzung. Alles andere bleibt optional im Editor.</p>
+                </div>
+
+                <div class="action-cards action-cards-primary">
+                    <div class="action-card action-card-primary" data-mode="techno_beat">
+                        <div class="card-icon">128</div>
+                        <h3>Techno Beat</h3>
+                        <p>Druckvoller Club-Beat, instrumental, schneller Erstlauf.</p>
+                    </div>
+                    <div class="action-card action-card-primary" data-mode="hiphop_beat">
+                        <div class="card-icon">808</div>
+                        <h3>Hip-Hop Beat</h3>
+                        <p>Klarer Groove für Boom Bap oder Trap ohne UI-Chaos.</p>
+                    </div>
+                    <div class="action-card action-card-primary" data-mode="full_track">
+                        <div class="card-icon">Full</div>
+                        <h3>Voller Track</h3>
+                        <p>Kompletter Musiklauf mit klaren Stilvorgaben statt offenem Bastelmodus.</p>
+                    </div>
+                </div>
+
+                <div class="action-cards action-cards-secondary">
+                    <div class="action-card" data-page="projects">
+                        <div class="card-icon">Projekte</div>
+                        <h3>Projekte öffnen</h3>
+                        <p>Gespeicherte Ergebnisse laden, anhören und exportieren.</p>
+                    </div>
+                </div>
+
+                <div class="recent-section">
+                    <h3>Letzte Projekte</h3>
+                    <div id="recentProjects" class="projects-list">
+                        <p class="placeholder">Keine Projekte vorhanden</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-track" class="page">
+                <div class="form-container">
+                    <h2>Voller Track</h2>
+                    <p class="form-intro">Wähle zuerst einen Stil. Alles Weitere ist optional.</p>
+
+                    <form id="trackForm" class="music-form">
+                        <div class="form-group">
+                            <label>Track-Titel *</label>
+                            <input type="text" id="trackTitle" placeholder="z.B. Neon Drive" required>
+                        </div>
+
+                        <div class="form-group highlight-preset">
+                            <label>Track-Stil</label>
+                            <select id="trackPreset">
+                                <option value="techno_melodic">Melodic Techno</option>
+                                <option value="techno_club">Driving Club Techno</option>
+                                <option value="hiphop_boombap">Boom Bap</option>
+                                <option value="hiphop_dark">Dark Urban Hip-Hop</option>
+                                <optgroup label="Techno">
+                                    <option value="techno_dark">Dark Techno - hypnotic, minimal</option>
+                                    <option value="techno_hard">Hard Underground Techno - aggressive, raw</option>
+                                </optgroup>
+                                <optgroup label="Hip-Hop">
+                                    <option value="hiphop_trap">Modern Trap - 808s, hi-hats, contemporary</option>
+                                    <option value="hiphop_lofi">LoFi Hip-Hop - chill, vinyl, study vibes</option>
+                                </optgroup>
+                            </select>
+                            <small id="presetHint" class="hint">Preset-Werte werden direkt für den Erstlauf gesetzt.</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Vibe</label>
+                                <select id="trackMood" required>
+                                    <option value="energetic">Energetic</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="groovy">Groovy</option>
+                                    <option value="melancholic">Melancholic</option>
+                                    <option value="laid back">Laid Back</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Länge</label>
+                                <select id="trackDuration">
+                                    <option value="30">30 Sek.</option>
+                                    <option value="60" selected>60 Sek.</option>
+                                    <option value="90">90 Sek.</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Text-Idee oder Hook</label>
+                            <textarea id="trackLyrics" placeholder="Optional: kurze Hook, Stimmung oder 2-3 Stichpunkte..." rows="3"></textarea>
+                        </div>
+
+                        <details class="advanced-panel">
+                            <summary>Erweitert</summary>
+                            <div class="advanced-panel-body">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Genre</label>
+                                        <select id="trackGenre" required>
+                                            <option value="Techno">Techno</option>
+                                            <option value="Hip-Hop">Hip-Hop</option>
+                                            <option value="House">House</option>
+                                            <option value="Minimal">Minimal</option>
+                                            <option value="Trap">Trap</option>
+                                            <option value="Drum and Bass">Drum and Bass</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Sprache</label>
+                                        <select id="trackLanguage">
+                                            <option value="en">English</option>
+                                            <option value="de">Deutsch</option>
+                                            <option value="es">Español</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Negative Vorgaben (Komma-getrennt)</label>
+                                    <input type="text" id="trackNegative" placeholder="z.B. cheesy, weak drop, bright pop">
+                                </div>
+
+                                <div class="slider-group">
+                                    <h4>Feinabstimmung</h4>
+                                    <div class="slider">
+                                        <label>Energie: <span id="energyValue">5</span>/10</label>
+                                        <input type="range" id="trackEnergy" min="1" max="10" value="5">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Tempo: <span id="tempoValue">120</span> BPM</label>
+                                        <input type="range" id="trackTempo" min="60" max="180" value="120" step="5">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Kreativität: <span id="creativityValue">5</span>/10</label>
+                                        <input type="range" id="trackCreativity" min="1" max="10" value="5">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Eingängigkeit: <span id="catchinessValue">5</span>/10</label>
+                                        <input type="range" id="trackCatchiness" min="1" max="10" value="5">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Vocal-Stärke: <span id="vocalValue">5</span>/10</label>
+                                        <input type="range" id="trackVocal" min="0" max="10" value="5">
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <div class="button-group">
+                            <button type="submit" class="btn btn-primary">Vollen Track generieren</button>
+                            <button type="reset" class="btn btn-secondary">ZurÃ¼cksetzen</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section id="page-beat" class="page">
+                <div class="form-container">
+                    <h2 id="beatPageTitle">Techno Beat</h2>
+                    <p class="form-intro" id="beatPageIntro">Ein Beat-Modus, ein Titel, ein Lauf. Mehr ist für den Start nicht nötig.</p>
+
+                    <div class="mode-switch" id="beatModeSwitch">
+                        <button type="button" class="mode-chip active" data-mode="techno_beat">Techno Beat</button>
+                        <button type="button" class="mode-chip" data-mode="hiphop_beat">Hip-Hop Beat</button>
+                    </div>
+
+                    <form id="beatForm" class="music-form">
+                        <div class="form-group">
+                            <label>Beat-Titel *</label>
+                            <input type="text" id="beatTitle" placeholder="z.B. Warehouse Loop" required>
+                        </div>
+
+                        <div class="form-group highlight-preset">
+                            <label>Beat-Modus</label>
+                            <select id="beatPreset">
+                                <option value="beat_techno_club">Techno Beat</option>
+                                <option value="beat_hiphop_boom">Hip-Hop Beat</option>
+                                <optgroup label="Techno">
+                                    <option value="beat_techno_dark">Dark Techno Beat - hypnotic groove</option>
+                                </optgroup>
+                                <optgroup label="Hip-Hop">
+                                    <option value="beat_hiphop_trap">Trap Beat - 808s &amp; hi-hats</option>
+                                </optgroup>
+                            </select>
+                            <small id="beatPresetHint" class="hint">Preset-Werte werden direkt für Groove und Arrangement gesetzt.</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Vibe</label>
+                                <select id="beatMood" required>
+                                    <option value="groovy">Groovy</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="hard">Hard</option>
+                                    <option value="laid back">Laid Back</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Länge</label>
+                                <select id="beatDuration">
+                                    <option value="30">30 Sek.</option>
+                                    <option value="45" selected>45 Sek.</option>
+                                    <option value="60">60 Sek.</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <details class="advanced-panel">
+                            <summary>Erweitert</summary>
+                            <div class="advanced-panel-body">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Genre</label>
+                                        <select id="beatGenre" required>
+                                            <option value="Techno">Techno</option>
+                                            <option value="Hip-Hop">Hip-Hop</option>
+                                            <option value="House">House</option>
+                                            <option value="Drum and Bass">Drum and Bass</option>
+                                            <option value="Dubstep">Dubstep</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="slider-group">
+                                    <h4>Feinabstimmung</h4>
+                                    <div class="slider">
+                                        <label>Tempo: <span id="beatTempoValue">120</span> BPM</label>
+                                        <input type="range" id="beatTempo" min="60" max="180" value="120" step="5">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Druck / Härte: <span id="heavinessValue">5</span>/10</label>
+                                        <input type="range" id="beatHeaviness" min="1" max="10" value="5">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Melodie-Anteil: <span id="melodyValue">3</span>/10</label>
+                                        <input type="range" id="beatMelody" min="0" max="10" value="3">
+                                    </div>
+                                    <div class="slider">
+                                        <label>Energie: <span id="beatEnergyValue">6</span>/10</label>
+                                        <input type="range" id="beatEnergy" min="1" max="10" value="6">
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <div class="button-group">
+                            <button type="submit" class="btn btn-primary">Beat erzeugen</button>
+                            <button type="reset" class="btn btn-secondary">ZurÃ¼cksetzen</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section id="page-result" class="page">
+                <div class="result-container v2">
+                    <div id="resultStatus" class="result-status-banner" style="display: none;">
+                        <span id="resultStatusText">â—</span> <span id="resultStatusMsg">Generierung läuft...</span>
+                    </div>
+
+                    <div class="result-main">
+                        <div class="result-header">
+                            <div class="result-title-section">
+                                <h2 id="resultTitle">Warte auf Generierung...</h2>
+                                <div class="result-meta-row">
+                                    <span id="resultType" class="meta-badge type-badge">Track</span>
+                                    <span id="resultGenre" class="meta-badge genre-badge">Genre</span>
+                                    <span id="resultPreset" class="meta-badge preset-badge" style="display:none;"></span>
+                                </div>
+                            </div>
+                            <div class="result-timestamp">
+                                <small id="resultCreated">Eben erstellt</small>
+                            </div>
+                        </div>
+
+                        <div class="result-player-section">
+                            <div class="player-wrapper">
+                                <audio id="audioPlayer" controls></audio>
+                            </div>
+                        </div>
+
+                        <div class="result-details-grid">
+                            <div class="detail-item">
+                                <label>Typ</label>
+                                <p id="resultDetailsType">Track</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Genre</label>
+                                <p id="resultDetailsGenre">Techno</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Dauer</label>
+                                <p id="resultDetailsDuration">4 Min</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Stimmung</label>
+                                <p id="resultDetailsMood">-</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Preset</label>
+                                <p id="resultDetailsPreset">Keines</p>
+                            </div>
+                            <div class="detail-item">
+                                <label>Tempo</label>
+                                <p id="resultDetailsTempo">-</p>
+                            </div>
+                        </div>
+
+                        <div class="result-actions">
+                            <div class="action-group">
+                                <h4>Abspielen</h4>
+                                <div class="button-row">
+                                    <button class="btn btn-primary" id="playBtn">Start</button>
+                                    <button class="btn btn-secondary" id="stopBtn">Stop</button>
+                                </div>
+                            </div>
+
+                            <div class="action-group">
+                                <h4>Neu generieren</h4>
+                                <div class="button-row">
+                                    <button class="btn btn-tertiary" id="varyBtn">Leicht variieren</button>
+                                    <button class="btn btn-tertiary" id="regenerateBtn">Mit gleichen Einstellungen</button>
+                                </div>
+                            </div>
+
+                            <div class="action-group">
+                                <h4>Speichern</h4>
+                                <div class="button-row">
+                                    <button class="btn btn-success" id="saveBtn" data-testid="save-project-btn">Als Projekt speichern</button>
+                                    <button class="btn btn-export" id="exportBtn" data-testid="export-result-btn">Exportieren</button>
+                                </div>
+                            </div>
+
+                            <div class="action-group">
+                                <h4>Navigation</h4>
+                                <div class="button-row">
+                                    <button class="btn btn-secondary" id="backBtn">Zurück zum Editor</button>
+                                    <button class="btn btn-secondary" id="deleteBtn">Verwerfen</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="progress" class="progress-container" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <p id="progressText">Generierung läuft...</p>
+                        </div>
+
+                        <div id="errorMessage" class="error-banner" style="display: none;">
+                            <p id="errorText">Fehler bei der Generierung</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-projects" class="page">
+                <div class="projects-container">
+                    <div class="projects-header">
+                        <h2>Deine Projekte</h2>
+                        <p class="subtitle">Verwalte deine Musik-Kreationen</p>
+                    </div>
+
+                    <div class="projects-toolbar">
+                        <div class="search-box">
+                            <input type="text" id="projectSearch" placeholder="Nach Projektnamen suchen..." class="search-input">
+                        </div>
+
+                        <div class="filter-section">
+                            <div class="filter-group">
+                                <label>Typ:</label>
+                                <div class="filter-buttons">
+                                    <button class="filter-btn active" data-filter="all">Alle</button>
+                                    <button class="filter-btn" data-filter="track">Track</button>
+                                    <button class="filter-btn" data-filter="beat">Beat</button>
+                                </div>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Genre:</label>
+                                <select id="genreFilter" class="filter-select">
+                                    <option value="">Alle Genres</option>
+                                    <option value="Techno">Techno</option>
+                                    <option value="Hip-Hop">Hip-Hop</option>
+                                    <option value="House">House</option>
+                                    <option value="Minimal">Minimal</option>
+                                    <option value="Trap">Trap</option>
+                                    <option value="Drum and Bass">Drum and Bass</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Preset:</label>
+                                <select id="presetFilter" class="filter-select">
+                                    <option value="">Alle Presets</option>
+                                    <option value="with">Nur mit Preset</option>
+                                    <option value="without">Ohne Preset</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Sortierung:</label>
+                                <select id="sortFilter" class="filter-select">
+                                    <option value="newest">Neueste zuerst</option>
+                                    <option value="oldest">Älteste zuerst</option>
+                                    <option value="name">Name (A-Z)</option>
+                                    <option value="export">Zuletzt exportiert</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="projectsList" class="projects-list v2">
+                        <p class="placeholder">Keine Projekte vorhanden. Erstelle den ersten Track oder Beat.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-status" class="page">
+                <h2>System-Status</h2>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <h4>Engine</h4>
+                        <p id="statusEngine">Wird geladen...</p>
+                    </div>
+                    <div class="status-card">
+                        <h4>Projekte</h4>
+                        <p id="statusProjects">Wird gezählt...</p>
+                    </div>
+                    <div class="status-card">
+                        <h4>Outputs</h4>
+                        <p id="statusOutputs">Wird gezählt...</p>
+                    </div>
+                    <div class="status-card">
+                        <h4>API-Version</h4>
+                        <p id="statusVersion">0.2.0</p>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="location.reload()">Seite neu laden</button>
+            </section>
+        </main>
+    </div>
+
+    <dialog id="textInputDialog" class="text-input-dialog" data-testid="text-input-dialog">
+        <form method="dialog" id="textInputDialogForm" class="text-input-dialog-card">
+            <h3 id="textInputDialogTitle">Eingabe</h3>
+            <p id="textInputDialogDescription" class="text-input-dialog-description">Bitte Wert eingeben.</p>
+            <label class="text-input-dialog-label" for="textInputField" id="textInputDialogLabel">Name</label>
+            <input
+                type="text"
+                id="textInputField"
+                class="text-input-dialog-field"
+                data-testid="text-input-field"
+                autocomplete="off"
+                required
+            >
+            <div class="text-input-dialog-actions">
+                <button type="button" class="btn btn-secondary" id="textInputCancel" data-testid="text-input-cancel">Abbrechen</button>
+                <button type="submit" class="btn btn-primary" id="textInputConfirm" data-testid="text-input-confirm">Speichern</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+
+

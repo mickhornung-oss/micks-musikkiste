@@ -1,0 +1,125 @@
+{
+  "presets": [
+    {
+      "id": "beat_techno_dark",
+      "name": "Dark Techno Beat",
+      "category": "techno",
+      "description": "Dunkler Trommel-Pattern für Techno",
+      "default_mood": "dark",
+      "recommended_duration": 240,
+      "recommended_tempo": 125,
+      "negative_prompts": [
+        "happy",
+        "bright"
+      ],
+      "style_description": "Dark minimal beat. Hypnotic groove. Techno foundation.",
+      "drum_kit_hint": "analog",
+      "values": {
+        "energy": 6,
+        "tempo": 125,
+        "creativity": 3,
+        "catchiness": 1,
+        "vocal_strength": 0,
+        "heaviness": 7,
+        "melody_amount": 0
+      },
+      "tags": [
+        "techno",
+        "beat",
+        "dark"
+      ]
+    },
+    {
+      "id": "beat_techno_club",
+      "name": "Club Techno Beat",
+      "category": "techno",
+      "description": "Clubbiger Trommel-Pattern",
+      "default_mood": "energetic",
+      "recommended_duration": 240,
+      "recommended_tempo": 128,
+      "negative_prompts": [
+        "weak",
+        "quiet"
+      ],
+      "style_description": "Club techno beat. Strong kick. Dance floor ready.",
+      "drum_kit_hint": "electronic",
+      "values": {
+        "energy": 8,
+        "tempo": 128,
+        "creativity": 4,
+        "catchiness": 2,
+        "vocal_strength": 0,
+        "heaviness": 8,
+        "melody_amount": 1
+      },
+      "tags": [
+        "techno",
+        "beat",
+        "club"
+      ]
+    },
+    {
+      "id": "beat_hiphop_boom",
+      "name": "Boom Bap Beat",
+      "category": "hiphop",
+      "description": "Klassischer Boom Bap Pattern",
+      "default_mood": "neutral",
+      "recommended_duration": 180,
+      "recommended_tempo": 95,
+      "negative_prompts": [
+        "trap hats",
+        "techno kick",
+        "edm riser",
+        "overcompressed"
+      ],
+      "style_description": "Classic boom bap beat with dusty drums, chopped sample feel, strong snare and head-nod pocket.",
+      "drum_kit_hint": "vintage",
+      "values": {
+        "energy": 5,
+        "tempo": 95,
+        "creativity": 5,
+        "catchiness": 6,
+        "vocal_strength": 0,
+        "heaviness": 5,
+        "melody_amount": 2
+      },
+      "tags": [
+        "hiphop",
+        "boom bap",
+        "dusty drums",
+        "head nod"
+      ]
+    },
+    {
+      "id": "beat_hiphop_trap",
+      "name": "Trap Beat",
+      "category": "hiphop",
+      "description": "Moderner Trap-Trommel-Pattern",
+      "default_mood": "energetic",
+      "recommended_duration": 180,
+      "recommended_tempo": 100,
+      "negative_prompts": [
+        "boom bap swing",
+        "jazzy samples",
+        "trance leads"
+      ],
+      "style_description": "Modern trap beat with heavy 808 glide, tight hats, sparse melody and dark modern bounce.",
+      "drum_kit_hint": "808",
+      "values": {
+        "energy": 9,
+        "tempo": 100,
+        "creativity": 4,
+        "catchiness": 6,
+        "vocal_strength": 0,
+        "heaviness": 9,
+        "melody_amount": 0
+      },
+      "tags": [
+        "hiphop",
+        "trap",
+        "808",
+        "dark bounce"
+      ]
+    }
+  ]
+}

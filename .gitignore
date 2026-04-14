@@ -1,0 +1,44 @@
+# Git Ignore für Micks Musikkiste
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Data (keep structure, ignore content)
+data/outputs/*.mp3
+data/exports/*.mp3
+data/projects/*.json
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env.local
+.env.*.local
+
+# E2E
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
+.env

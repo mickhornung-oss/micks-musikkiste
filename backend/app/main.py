@@ -1,0 +1,121 @@
+"""Micks Musikkiste - consolidated backend entrypoint."""
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.config import settings
+from app.database import async_session_factory, close_db, init_db
+from app.http import RequestContextMiddleware, install_error_handlers
+from app.logging_config import logger
+from app.repositories.job_repository import JobRepository
+from app.routes import router
+from app.services.comfy_service import ensure_comfy_available
+from app.services.queue_worker import start_worker, stop_worker
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize and close shared resources."""
+    logger.info("starting_backend", engine_mode=settings.ENGINE_MODE)
+    await init_db()
+
+    # Recovery of stuck jobs
+    try:
+        async with async_session_factory() as session:
+            job_repo = JobRepository(session)
+            recovery_result = await job_repo.recover_stuck_jobs()
+            logger.info(
+                "recovery_complete",
+                recovered=recovery_result["recovered"],
+                failed=recovery_result["failed"],
+                total=recovery_result["total"]
+            )
+    except Exception as exc:
+        logger.error("recovery_failed", error=str(exc))
+        raise
+
+    if (settings.ENGINE_MODE or "").lower() in {"ace", "ace-step", "acestep"}:
+        comfy_state = await ensure_comfy_available()
+        logger.info(
+            "comfy_startup_status",
+            reachable=comfy_state["reachable"],
+            autostart_attempted=comfy_state["autostart_attempted"],
+            autostart_started=comfy_state["autostart_started"],
+            error=comfy_state["last_error"],
+            url=comfy_state["url"],
+        )
+
+    # Start queue worker if enabled
+    worker = None
+    if settings.WORKER_ENABLED:
+        worker = await start_worker()
+        if worker:
+            logger.info("worker_started", worker_id=worker.worker_id)
+
+    yield
+
+    # Stop worker gracefully
+    if worker:
+        await stop_worker()
+
+    await close_db()
+    logger.info("backend_stopped")
+
+
+app = FastAPI(
+    title=settings.API_TITLE,
+    description=settings.API_DESCRIPTION,
+    version=settings.API_VERSION,
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(RequestContextMiddleware)
+install_error_handlers(app)
+
+app.include_router(router)
+
+frontend_path = settings.PROJECT_ROOT / "frontend"
+if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
+
+@app.get("/")
+async def root():
+    """Serve frontend HTML when available."""
+    index_file = settings.PROJECT_ROOT / "frontend" / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file, media_type="text/html")
+
+    return {
+        "app": "Micks Musikkiste",
+        "version": settings.API_VERSION,
+        "status": "running",
+        "frontend": "not found - check frontend/index.html",
+        "docs": "/docs",
+    }
+
+
+@app.get("/api")
+async def api_root():
+    """Expose a minimal API index."""
+    return {
+        "version": settings.API_VERSION,
+        "endpoints": {
+            "health": "/health",
+            "track": "/api/track/generate",
+            "beat": "/api/beat/generate",
+            "projects": "/api/projects",
+            "jobs": "/api/jobs",
+        },
+    }

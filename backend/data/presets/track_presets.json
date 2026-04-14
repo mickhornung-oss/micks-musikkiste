@@ -1,0 +1,242 @@
+{
+  "presets": [
+    {
+      "id": "techno_dark",
+      "name": "Dark Techno",
+      "category": "techno",
+      "description": "Dunkle, hypnotische Techno mit minimalistischem Ansatz",
+      "default_mood": "dark",
+      "recommended_language": "en",
+      "recommended_duration": 240,
+      "negative_prompts": [
+        "weak",
+        "happy",
+        "vocals",
+        "bright"
+      ],
+      "style_description": "Deep, hypnotic techno with dark atmosphere. Minimal melodics. Repetitive groove.",
+      "values": {
+        "energy": 6,
+        "tempo": 125,
+        "creativity": 4,
+        "catchiness": 2,
+        "vocal_strength": 0,
+        "heaviness": 7,
+        "melody_amount": 1
+      },
+      "tags": [
+        "techno",
+        "dark",
+        "minimal"
+      ]
+    },
+    {
+      "id": "techno_melodic",
+      "name": "Melodic Techno",
+      "category": "techno",
+      "description": "Melodische Techno mit emotionalem Touch",
+      "default_mood": "energetic",
+      "recommended_language": "en",
+      "recommended_duration": 240,
+      "negative_prompts": [
+        "harsh",
+        "too dark",
+        "weak"
+      ],
+      "style_description": "Melodic techno with emotional element. Well-structured. Good groove.",
+      "values": {
+        "energy": 7,
+        "tempo": 130,
+        "creativity": 6,
+        "catchiness": 6,
+        "vocal_strength": 2,
+        "heaviness": 5,
+        "melody_amount": 7
+      },
+      "tags": [
+        "techno",
+        "melodic",
+        "emotional"
+      ]
+    },
+    {
+      "id": "techno_club",
+      "name": "Driving Club Techno",
+      "category": "techno",
+      "description": "Energische Club-Techno zum Tanzen",
+      "default_mood": "energetic",
+      "recommended_language": "en",
+      "recommended_duration": 240,
+      "negative_prompts": [
+        "weak",
+        "slow",
+        "quiet"
+      ],
+      "style_description": "Driving club techno. Powerful beat. High energy. Dance floor ready.",
+      "values": {
+        "energy": 9,
+        "tempo": 135,
+        "creativity": 5,
+        "catchiness": 5,
+        "vocal_strength": 1,
+        "heaviness": 8,
+        "melody_amount": 3
+      },
+      "tags": [
+        "techno",
+        "club",
+        "dance"
+      ]
+    },
+    {
+      "id": "techno_hard",
+      "name": "Hard Underground Techno",
+      "category": "techno",
+      "description": "Harte, raue Underground-Techno",
+      "default_mood": "dark",
+      "recommended_language": "en",
+      "recommended_duration": 240,
+      "negative_prompts": [
+        "soft",
+        "pleasant",
+        "clean"
+      ],
+      "style_description": "Hard, raw underground techno. Harsh sounds. Industrial edge. Aggressive.",
+      "values": {
+        "energy": 10,
+        "tempo": 145,
+        "creativity": 7,
+        "catchiness": 1,
+        "vocal_strength": 0,
+        "heaviness": 10,
+        "melody_amount": 0
+      },
+      "tags": [
+        "techno",
+        "hard",
+        "underground"
+      ]
+    },
+    {
+      "id": "hiphop_boombap",
+      "name": "Boom Bap",
+      "category": "hiphop",
+      "description": "Klassisches Boom Bap mit sauberer Schlagzeug und Sampling",
+      "default_mood": "neutral",
+      "recommended_language": "en",
+      "recommended_duration": 180,
+      "negative_prompts": [
+        "trap hats",
+        "edm risers",
+        "four on the floor",
+        "too modern"
+      ],
+      "style_description": "Classic boom bap with dusty drums, chopped soul texture, strong snare and head-nod groove.",
+      "values": {
+        "energy": 5,
+        "tempo": 95,
+        "creativity": 6,
+        "catchiness": 7,
+        "vocal_strength": 5,
+        "heaviness": 6,
+        "melody_amount": 4
+      },
+      "tags": [
+        "hiphop",
+        "boom bap",
+        "dusty drums",
+        "head nod"
+      ]
+    },
+    {
+      "id": "hiphop_trap",
+      "name": "Modern Trap",
+      "category": "hiphop",
+      "description": "Modernes Trap mit 808s und schnellen Hats",
+      "default_mood": "energetic",
+      "recommended_language": "en",
+      "recommended_duration": 180,
+      "negative_prompts": [
+        "boom bap swing",
+        "rock guitars",
+        "euphoric trance"
+      ],
+      "style_description": "Modern trap with heavy 808 sub, fast hats, dark space and punchy street energy.",
+      "values": {
+        "energy": 9,
+        "tempo": 100,
+        "creativity": 6,
+        "catchiness": 7,
+        "vocal_strength": 4,
+        "heaviness": 9,
+        "melody_amount": 2
+      },
+      "tags": [
+        "hiphop",
+        "trap",
+        "808",
+        "dark"
+      ]
+    },
+    {
+      "id": "hiphop_lofi",
+      "name": "LoFi Hip-Hop",
+      "category": "hiphop",
+      "description": "Entspannte LoFi Hip-Hop mit Vinyl-Qualität",
+      "default_mood": "calm",
+      "recommended_language": "en",
+      "recommended_duration": 240,
+      "negative_prompts": [
+        "loud",
+        "aggressive",
+        "modern"
+      ],
+      "style_description": "Relaxed lo-fi hip-hop. Vinyl sound. Chill vibes. Study music.",
+      "values": {
+        "energy": 3,
+        "tempo": 85,
+        "creativity": 5,
+        "catchiness": 4,
+        "vocal_strength": 2,
+        "heaviness": 2,
+        "melody_amount": 7
+      },
+      "tags": [
+        "hiphop",
+        "lofi",
+        "chill"
+      ]
+    },
+    {
+      "id": "hiphop_dark",
+      "name": "Dark Urban Hip-Hop",
+      "category": "hiphop",
+      "description": "Düsteres Urban Hip-Hop mit aggressivem Edge",
+      "default_mood": "dark",
+      "recommended_language": "en",
+      "recommended_duration": 180,
+      "negative_prompts": [
+        "happy",
+        "bright",
+        "soft",
+        "pop chorus"
+      ],
+      "style_description": "Dark urban hip-hop with sparse piano, deep sub, hard drums and tense street atmosphere.",
+      "values": {
+        "energy": 8,
+        "tempo": 92,
+        "creativity": 6,
+        "catchiness": 5,
+        "vocal_strength": 6,
+        "heaviness": 9,
+        "melody_amount": 2
+      },
+      "tags": [
+        "hiphop",
+        "dark",
+        "urban",
+        "808"
+      ]
+    }
+  ]
+}
