@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-09a031.svg)](https://fastapi.tiangolo.com/)
+[![codecov](https://codecov.io/gh/mickhornung-oss/micks-musikkiste/branch/main/graph/badge.svg)](https://codecov.io/gh/mickhornung-oss/micks-musikkiste)
+[![Tests](https://github.com/mickhornung-oss/micks-musikkiste/actions/workflows/python-tests.yml/badge.svg)](https://github.com/mickhornung-oss/micks-musikkiste/actions)
 
 Lokales AI-Musikstudio für Techno und Hip-Hop mit konsolidiertem FastAPI-Backend, PostgreSQL für Jobs und Projekte, statischem Frontend und lokalen Audio-/Export-Dateien unter `data/`.
 
