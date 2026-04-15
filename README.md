@@ -6,6 +6,12 @@
 
 Lokales AI-Musikstudio für Techno und Hip-Hop mit konsolidiertem FastAPI-Backend, PostgreSQL für Jobs und Projekte, statischem Frontend und lokalen Audio-/Export-Dateien unter `data/`.
 
+## 📸 Demo
+
+![Micks Musikkiste Dashboard](images/micks-musikkiste-dashboard.png)
+
+*Vollständiges Music Production Studio mit Echtzeit-Feedback und Projektmanagement.*
+
 ## Architektur
 
 - Backend: FastAPI + SQLAlchemy Async + PostgreSQL
