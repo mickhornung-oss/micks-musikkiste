@@ -11,25 +11,25 @@ Lokales AI-Musikstudio für Techno und Hip-Hop mit konsolidiertem FastAPI-Backen
 - Logging: strukturierte Konsole plus lokale Logdateien unter `logs/`
 - Modi: `mock`, `ace`, `real`
 
-## Start / Run
+## ⚡ Quick Start
 
 ```powershell
-cd C:\Users\mickh\Desktop\MicksMusikkiste
+# 1. Dependencies installieren
+pip install -r backend/requirements.txt
+
+# 2. Datenbank initialisieren (beim ersten Mal)
+python backend/scripts/migrate.py
+
+# 3. App starten
 python backend/run.py
+# oder: start.bat (Windows)
 ```
 
-Oder unter Windows:
-
-```bat
-start.bat
-```
-
-Danach:
-
-- App: `http://localhost:8000`
-- API Docs: `http://localhost:8000/docs`
-- Diagnostics: `http://localhost:8000/api/diagnostics`
-- Health: `http://localhost:8000/health`
+✅ **App live unter:**
+- 🎵 UI: http://localhost:8000
+- 📚 API-Docs: http://localhost:8000/docs
+- 🔍 Diagnostics: http://localhost:8000/api/diagnostics
+- 💓 Health-Check: http://localhost:8000/health
 
 ## Datenbank
 
