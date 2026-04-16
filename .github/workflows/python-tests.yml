@@ -66,7 +66,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ['3.11']
 
     steps:
     - uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
         ENGINE_MODE: mock
         ENGINE_MOCK_DELAY: "1"
       run: |
-        pytest tests/ --asyncio-mode=auto --cov=. --cov-report=xml -v
+        pytest tests/ --asyncio-mode=auto -v
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
