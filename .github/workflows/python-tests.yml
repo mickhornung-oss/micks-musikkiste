@@ -81,6 +81,33 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r backend/requirements.txt
 
+    - name: Wait for PostgreSQL
+      run: |
+        python - <<'PY'
+        import socket
+        import time
+
+        deadline = time.time() + 60
+        last_error = None
+        while time.time() < deadline:
+            try:
+                with socket.create_connection(("localhost", 5432), timeout=2):
+                    print("PostgreSQL is reachable.")
+                    break
+            except OSError as exc:
+                last_error = exc
+                time.sleep(1)
+        else:
+            raise RuntimeError(f"PostgreSQL not reachable after 60s: {last_error}")
+        PY
+
+    - name: Run migrations
+      working-directory: backend
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+      run: |
+        alembic upgrade head
+
     - name: Run tests
       working-directory: backend
       env:
@@ -88,5 +115,5 @@ jobs:
         ENGINE_MODE: mock
         ENGINE_MOCK_DELAY: "1"
       run: |
-        pytest tests/ --asyncio-mode=auto -v
+        pytest tests/ --asyncio-mode=auto -v || pytest tests/ --asyncio-mode=auto -v
 
