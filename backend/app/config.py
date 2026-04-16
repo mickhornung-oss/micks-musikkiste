@@ -17,10 +17,10 @@ class Settings(BaseSettings):
 
     # API
     API_TITLE: str = "Micks Musikkiste API"
-    API_VERSION: str = "0.2.0"
+    API_VERSION: str = "1.0.1"
     API_DESCRIPTION: str = "Lokales AI-Musikstudio Backend"
     APP_ENV: str = "local"
-    RELEASE_VERSION: str = "0.2.0"
+    RELEASE_VERSION: str = "1.0.1"
     RELEASE_SHA: str = "local"
 
     # Server

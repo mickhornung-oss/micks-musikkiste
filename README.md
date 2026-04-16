@@ -52,7 +52,7 @@ SERVER_PORT=8000
 LOG_LEVEL=info
 DEBUG=false
 APP_ENV=local
-RELEASE_VERSION=0.2.0
+RELEASE_VERSION=1.0.1
 RELEASE_SHA=local
 ```
 
@@ -77,6 +77,8 @@ RELEASE_SHA=local
 
 - Runbook: [`docs/RUNBOOK.md`](docs/RUNBOOK.md)
 - Release checklist: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
+- Latest release notes: [`docs/releases/v1.0.1.md`](docs/releases/v1.0.1.md)
+- Incident template: [`docs/incidents/INCIDENT_TEMPLATE.md`](docs/incidents/INCIDENT_TEMPLATE.md)
 - Deployment smoke check:
 
 ```bash
