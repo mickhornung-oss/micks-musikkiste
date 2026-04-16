@@ -108,9 +108,7 @@ def test_mock_job_project_roundtrip_and_export(client, test_token):
     assert export_response.status_code == 200
     export_data = export_response.json()["data"]
     assert export_data["public_url"].startswith("/exports/")
-    export_file = Path("data") / export_data["public_url"].replace(
-        "/exports/", "exports/"
-    )
+    export_file = Path(export_data["path"])
     assert export_file.exists()
 
     loaded_project = client.get(f"/api/projects/{project['id']}")

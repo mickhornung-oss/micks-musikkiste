@@ -120,10 +120,12 @@ async def test_job_repository_status_counts(db_session, test_token):
     assert counts["failed"] >= 1
 
 
-def test_ace_engine_diagnostics_reports_missing_comfy(monkeypatch):
+def test_ace_engine_diagnostics_reports_missing_comfy(monkeypatch, tmp_path):
+    workflow_path = tmp_path / "workflow.json"
+    workflow_path.write_text("{}", encoding="utf-8")
     monkeypatch.setattr(
         "app.services.engines.ace.settings.ACE_STEP_COMMAND",
-        'python ../scripts/ace_comfy_wrapper.py --workflow "C:/Users/mickh/Desktop/Py Mick/vendor/ComfyUI/workflows/ACE-gen-lora.json" --comfy-url http://127.0.0.1:65530',
+        f'python ../scripts/ace_comfy_wrapper.py --workflow "{workflow_path}" --comfy-url http://127.0.0.1:65530',
     )
     adapter = AceEngineAdapter()
 
