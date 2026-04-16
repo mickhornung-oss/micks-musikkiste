@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: micks-musikkiste
+    runtime: docker
+    plan: free
+    dockerfile: ./Dockerfile
+    envVars:
+      - key: ENGINE_MODE
+        value: mock
+      - key: SERVER_HOST
+        value: 0.0.0.0
+      - key: LOG_LEVEL
+        value: info
+      - key: DEBUG
+        value: "false"
+    healthCheckPath: /health
+    healthCheckInterval: 30

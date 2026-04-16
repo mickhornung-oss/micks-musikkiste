@@ -5,7 +5,11 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-09a031.svg)](https://fastapi.tiangolo.com/)
 [![Tests](https://github.com/mickhornung-oss/micks-musikkiste/actions/workflows/python-tests.yml/badge.svg)](https://github.com/mickhornung-oss/micks-musikkiste/actions)
 
-AI music production studio backend with FastAPI, async PostgreSQL, queue-based jobs, and structured observability.
+🚀 **Live Demo** — Coming soon (Railway/Render deployment ready)
+
+AI music production studio backend with FastAPI, async PostgreSQL, queue-based job processing, and structured observability.
+
+> **Deutsch:** Lokales KI-Musikstudio mit FastAPI-Backend, async PostgreSQL, Job-Queue und strukturiertem Observability-Layer.
 
 ## Architecture
 
