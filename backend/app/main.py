@@ -20,22 +20,30 @@ from fastapi.staticfiles import StaticFiles
 async def lifespan(app: FastAPI):
     """Initialize and close shared resources."""
     logger.info("starting_backend", engine_mode=settings.ENGINE_MODE)
-    await init_db()
+    db_ready = True
+    try:
+        await init_db()
+    except Exception as exc:
+        db_ready = False
+        logger.exception("database_init_failed_starting_degraded", error=str(exc))
+    app.state.db_ready = db_ready
 
     # Recovery of stuck jobs
-    try:
-        async with async_session_factory() as session:
-            job_repo = JobRepository(session)
-            recovery_result = await job_repo.recover_stuck_jobs()
-            logger.info(
-                "recovery_complete",
-                recovered=recovery_result["recovered"],
-                failed=recovery_result["failed"],
-                total=recovery_result["total"],
-            )
-    except Exception as exc:
-        logger.error("recovery_failed", error=str(exc))
-        raise
+    if db_ready:
+        try:
+            async with async_session_factory() as session:
+                job_repo = JobRepository(session)
+                recovery_result = await job_repo.recover_stuck_jobs()
+                logger.info(
+                    "recovery_complete",
+                    recovered=recovery_result["recovered"],
+                    failed=recovery_result["failed"],
+                    total=recovery_result["total"],
+                )
+        except Exception as exc:
+            logger.error("recovery_failed", error=str(exc))
+            db_ready = False
+            app.state.db_ready = False
 
     if (settings.ENGINE_MODE or "").lower() in {"ace", "ace-step", "acestep"}:
         comfy_state = await ensure_comfy_available()
@@ -50,7 +58,7 @@ async def lifespan(app: FastAPI):
 
     # Start queue worker if enabled
     worker = None
-    if settings.WORKER_ENABLED:
+    if settings.WORKER_ENABLED and db_ready:
         worker = await start_worker()
         if worker:
             logger.info("worker_started", worker_id=worker.worker_id)

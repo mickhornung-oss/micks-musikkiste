@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.config import settings
-from app.database import check_db_connection, get_db_session
+from app.database import async_session_factory, check_db_connection, get_db_session
 from app.errors import InvalidStateError, NotFoundError
 from app.logging_config import logger
 from app.models import (
@@ -56,17 +56,29 @@ def _release_info() -> dict:
 
 
 @router.get("/health")
-async def health_check(
-    project_service: ProjectService = Depends(get_project_service),
-) -> SystemStatus:
-    database = await check_db_connection()
+async def health_check() -> SystemStatus:
+    database = {"ok": False, "error": "unknown"}
+    total_projects = 0
+    try:
+        database = await check_db_connection()
+    except Exception as exc:
+        database = {"ok": False, "error": str(exc)}
+
+    if database.get("ok"):
+        try:
+            async with async_session_factory() as session:
+                project_service = ProjectService(session)
+                total_projects = await project_service.count_projects()
+        except Exception as exc:
+            logger.warning("health_project_count_failed", error=str(exc))
+
     return SystemStatus(
         status="ok" if database["ok"] else "degraded",
         engine_type=settings.ENGINE_MODE,
         engine_name=settings.ENGINE_MODE,
         version=settings.API_VERSION,
         data_dir_ok=True,
-        total_projects=await project_service.count_projects(),
+        total_projects=total_projects,
         total_outputs=_count_output_files(),
         release=_release_info(),
     )
