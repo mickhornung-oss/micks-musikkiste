@@ -29,14 +29,16 @@ TEST_PREFIX = "pytest-mm-"
 async def cleanup_test_artifacts():
     async with async_session_factory() as session:
         await session.execute(
-            text("""
+            text(
+                """
                 UPDATE projects
                 SET last_job_id = NULL
                 WHERE name LIKE :prefix
                    OR last_job_id IN (
                        SELECT id FROM jobs WHERE title LIKE :prefix
                    )
-                """),
+                """
+            ),
             {"prefix": f"{TEST_PREFIX}%"},
         )
         await session.execute(

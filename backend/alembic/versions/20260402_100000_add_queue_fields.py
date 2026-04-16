@@ -42,29 +42,35 @@ def upgrade() -> None:
     op.create_index("ix_jobs_claimed_heartbeat", "jobs", ["status", "heartbeat_at"])
 
     # Migrate existing RUNNING jobs to CLAIMED for recovery
-    op.execute("""
+    op.execute(
+        """
         UPDATE jobs 
         SET status = 'claimed', 
             claimed_at = updated_at,
             attempt_count = 1,
             max_attempts = 3
         WHERE status = 'running'
-    """)
+    """
+    )
 
     # Migrate existing COMPLETED jobs to have finished_at
-    op.execute("""
+    op.execute(
+        """
         UPDATE jobs 
         SET finished_at = updated_at
         WHERE status = 'completed' AND finished_at IS NULL
-    """)
+    """
+    )
 
     # Migrate existing FAILED jobs to have finished_at
-    op.execute("""
+    op.execute(
+        """
         UPDATE jobs 
         SET finished_at = updated_at,
             last_error = COALESCE(error, 'Unknown error')
         WHERE status = 'failed' AND finished_at IS NULL
-    """)
+    """
+    )
 
 
 def downgrade() -> None:

@@ -38,7 +38,9 @@ async def cleanup_jobs(delete_test_jobs: bool, recover_stale: bool) -> dict:
             await session.commit()
 
         if delete_test_jobs:
-            await session.execute(text("""
+            await session.execute(
+                text(
+                    """
                     UPDATE projects
                     SET last_job_id = NULL
                     WHERE last_job_id IN (
@@ -49,15 +51,21 @@ async def cleanup_jobs(delete_test_jobs: bool, recover_stale: bool) -> dict:
                            OR title LIKE 'recovery-check-%'
                            OR title = 'Block1 Mock Validation'
                     )
-                    """))
-            result = await session.execute(text("""
+                    """
+                )
+            )
+            result = await session.execute(
+                text(
+                    """
                     DELETE FROM jobs
                     WHERE title LIKE 'pytest-mm-%'
                        OR title LIKE 'final-manual-%'
                        OR title LIKE 'queue-%'
                        OR title LIKE 'recovery-check-%'
                        OR title = 'Block1 Mock Validation'
-                    """))
+                    """
+                )
+            )
             deleted = result.rowcount or 0
             await session.commit()
 
