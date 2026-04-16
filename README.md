@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-09a031.svg)](https://fastapi.tiangolo.com/)
 [![Tests](https://github.com/mickhornung-oss/micks-musikkiste/actions/workflows/python-tests.yml/badge.svg)](https://github.com/mickhornung-oss/micks-musikkiste/actions)
 
-🚀 **Live Demo** — Coming soon (Railway/Render deployment ready)
+Live Demo: https://micks-musikkiste-production-834a.up.railway.app
 
 AI music production studio backend with FastAPI, async PostgreSQL, queue-based job processing, and structured observability.
 
@@ -44,6 +44,12 @@ Live endpoints:
 - Health: `http://localhost:8000/health`
 - Diagnostics: `http://localhost:8000/api/diagnostics`
 - Version: `http://localhost:8000/api/version`
+
+Production endpoints:
+- UI: `https://micks-musikkiste-production-834a.up.railway.app`
+- Health: `https://micks-musikkiste-production-834a.up.railway.app/health`
+- Diagnostics: `https://micks-musikkiste-production-834a.up.railway.app/api/diagnostics`
+- Version: `https://micks-musikkiste-production-834a.up.railway.app/api/version`
 
 ## Configuration
 
@@ -105,3 +111,4 @@ cd e2e && npm install && npx playwright install chromium && npm test
 
 - `ace` and `real` modes require a local ComfyUI installation
 - E2E suite runs against `mock` mode only
+
