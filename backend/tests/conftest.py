@@ -61,18 +61,27 @@ async def cleanup_test_artifacts():
                 path.unlink(missing_ok=True)
 
 
-def cleanup_test_artifacts_sync():
+def cleanup_test_artifacts_sync(loop: asyncio.AbstractEventLoop):
     async def _cleanup():
         await close_db()
         await cleanup_test_artifacts()
         await close_db()
 
-    asyncio.run(_cleanup())
+    loop.run_until_complete(_cleanup())
+
+
+@pytest.fixture(scope="session")
+def cleanup_loop():
+    loop = asyncio.new_event_loop()
+    try:
+        yield loop
+    finally:
+        loop.close()
 
 
 @pytest.fixture()
-def server():
-    cleanup_test_artifacts_sync()
+def server(cleanup_loop):
+    cleanup_test_artifacts_sync(cleanup_loop)
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         test_port = sock.getsockname()[1]
@@ -114,7 +123,7 @@ def server():
             time.sleep(0.5)
     else:
         process.terminate()
-        cleanup_test_artifacts_sync()
+        cleanup_test_artifacts_sync(cleanup_loop)
         raise RuntimeError(f"Testserver konnte nicht gestartet werden: {last_error}")
 
     process.terminate()
