@@ -43,7 +43,7 @@ jobs:
         pip install pip-audit
 
     - name: Scan dependencies for vulnerabilities
-      run: pip-audit -r backend/requirements.txt || true
+      run: pip-audit -r backend/requirements.txt
 
   tests:
     runs-on: ubuntu-latest

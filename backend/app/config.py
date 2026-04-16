@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     LOGS_DIR: Path = PROJECT_ROOT / "logs"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:Passwort@localhost:5432/postgres"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres@localhost:5432/postgres"
     DATABASE_POOL_SIZE: int = 5
     DATABASE_MAX_OVERFLOW: int = 10
 
