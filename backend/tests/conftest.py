@@ -144,4 +144,3 @@ async def db_session():
 @pytest.fixture()
 def test_token():
     return uuid.uuid4().hex[:8]
-
