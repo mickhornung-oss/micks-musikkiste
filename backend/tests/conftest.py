@@ -110,7 +110,7 @@ def server(cleanup_loop):
         stderr=subprocess.DEVNULL,
     )
 
-    deadline = time.time() + 20
+    deadline = time.time() + 60
     last_error = None
     while time.time() < deadline:
         try:
