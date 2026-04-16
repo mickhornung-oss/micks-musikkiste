@@ -1,7 +1,9 @@
 """Repository for project database operations."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import List, Optional
+
+UTC = timezone.utc
 
 from app.logging_config import logger
 from app.models.db_models import Project, ProjectType

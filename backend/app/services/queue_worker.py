@@ -2,9 +2,11 @@
 
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+UTC = timezone.utc
 
 from app.config import settings
 from app.database import async_session_factory

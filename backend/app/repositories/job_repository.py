@@ -1,7 +1,9 @@
 """Repository for job database operations."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+
+UTC = timezone.utc
 
 from app.logging_config import logger
 from app.models.db_models import Job, JobStatus

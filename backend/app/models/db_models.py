@@ -1,8 +1,10 @@
 """SQLAlchemy ORM models for Micks Musikkiste."""
 
 import enum
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
+
+UTC = timezone.utc
 
 from app.database import Base
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
