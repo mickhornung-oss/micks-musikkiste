@@ -3,8 +3,7 @@ from pathlib import Path
 
 import pytest
 from app.errors import InvalidStateError
-from app.models.db_models import (Job, JobStatus, Project, ProjectType,
-                                  utc_now_naive)
+from app.models.db_models import Job, JobStatus, Project, ProjectType, utc_now_naive
 from app.repositories import JobRepository, ProjectRepository
 from app.services.engines.ace import AceEngineAdapter
 from app.services.music_service import MusicGenerationService

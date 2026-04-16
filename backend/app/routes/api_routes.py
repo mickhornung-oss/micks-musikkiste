@@ -8,9 +8,13 @@ from app.config import settings
 from app.database import check_db_connection, get_db_session
 from app.errors import InvalidStateError, NotFoundError
 from app.logging_config import logger
-from app.models import (BeatGenerationRequest, DiagnosticsResponse,
-                        SaveProjectRequest, SystemStatus,
-                        TrackGenerationRequest)
+from app.models import (
+    BeatGenerationRequest,
+    DiagnosticsResponse,
+    SaveProjectRequest,
+    SystemStatus,
+    TrackGenerationRequest,
+)
 from app.observability import runtime_stats
 from app.repositories.job_repository import JobRepository
 from app.services.engines import get_engine_diagnostics
