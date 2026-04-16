@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 from app.config import settings
 from app.services.comfy_service import get_comfy_state
+
 from .base import EngineAdapter
 
 
@@ -108,7 +109,9 @@ class AceEngineAdapter(EngineAdapter):
                 check=False,
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"ACE-Step timeout nach {settings.ENGINE_TIMEOUT}s | cmd={cmd_display}")
+            raise RuntimeError(
+                f"ACE-Step timeout nach {settings.ENGINE_TIMEOUT}s | cmd={cmd_display}"
+            )
 
         with open(debug_path, "a", encoding="utf-8") as fh:
             fh.write(
@@ -118,10 +121,14 @@ class AceEngineAdapter(EngineAdapter):
             )
 
         if proc.returncode != 0:
-            raise RuntimeError(f"ACE-Step exit {proc.returncode}: {proc.stderr or proc.stdout}")
+            raise RuntimeError(
+                f"ACE-Step exit {proc.returncode}: {proc.stderr or proc.stdout}"
+            )
 
         if not output_path.exists() or output_path.stat().st_size == 0:
-            raise RuntimeError("ACE-Step meldete Erfolg, aber keine Audiodatei gefunden")
+            raise RuntimeError(
+                "ACE-Step meldete Erfolg, aber keine Audiodatei gefunden"
+            )
 
         return str(output_path)
 
@@ -186,7 +193,9 @@ class AceEngineAdapter(EngineAdapter):
 
     def _validate_runtime_requirements(self):
         if not self.command.strip():
-            raise RuntimeError("ACE-Step-Kommando ist leer. Bitte ACE_STEP_COMMAND setzen oder ENGINE_MODE=mock verwenden.")
+            raise RuntimeError(
+                "ACE-Step-Kommando ist leer. Bitte ACE_STEP_COMMAND setzen oder ENGINE_MODE=mock verwenden."
+            )
 
         workflow_path = self._extract_option("--workflow")
         if not workflow_path or not Path(workflow_path).exists():

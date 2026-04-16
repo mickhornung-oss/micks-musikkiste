@@ -3,11 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from typing import List, Optional
 
-from sqlalchemy import func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.logging_config import logger
 from app.models.db_models import Job, JobStatus
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class JobRepository:
@@ -26,7 +25,9 @@ class JobRepository:
             self.session.add(job)
             await self.session.flush()
             await self.session.refresh(job)
-            logger.info("job_repo_created", job_id=job.id, job_type=job.type, status=job.status)
+            logger.info(
+                "job_repo_created", job_id=job.id, job_type=job.type, status=job.status
+            )
             return job
         except Exception:
             logger.exception("job_repo_create_failed", job_id=job.id, job_type=job.type)
@@ -54,7 +55,9 @@ class JobRepository:
     async def get_by_status(self, status: JobStatus) -> List[Job]:
         try:
             result = await self.session.execute(
-                select(Job).where(Job.status == status.value).order_by(Job.created_at.desc())
+                select(Job)
+                .where(Job.status == status.value)
+                .order_by(Job.created_at.desc())
             )
             return list(result.scalars().all())
         except Exception:
@@ -96,7 +99,9 @@ class JobRepository:
                 )
             return job
         except Exception:
-            logger.exception("job_repo_status_update_failed", job_id=job_id, status=status_value)
+            logger.exception(
+                "job_repo_status_update_failed", job_id=job_id, status=status_value
+            )
             return None
 
     async def delete(self, job_id: str) -> bool:
@@ -113,7 +118,9 @@ class JobRepository:
 
     async def count_by_status(self, status: JobStatus) -> int:
         try:
-            result = await self.session.execute(select(func.count(Job.id)).where(Job.status == status.value))
+            result = await self.session.execute(
+                select(func.count(Job.id)).where(Job.status == status.value)
+            )
             return result.scalar() or 0
         except Exception:
             logger.exception("job_repo_count_failed", status=status.value)
@@ -122,9 +129,14 @@ class JobRepository:
     async def get_status_counts(self) -> dict[str, int]:
         """Count jobs by status for diagnostics."""
         try:
-            result = await self.session.execute(select(Job.status, func.count(Job.id)).group_by(Job.status))
+            result = await self.session.execute(
+                select(Job.status, func.count(Job.id)).group_by(Job.status)
+            )
             counts = {status: count for status, count in result.all()}
-            return {job_status.value: counts.get(job_status.value, 0) for job_status in JobStatus}
+            return {
+                job_status.value: counts.get(job_status.value, 0)
+                for job_status in JobStatus
+            }
         except Exception:
             logger.exception("job_repo_status_counts_failed")
             return {job_status.value: 0 for job_status in JobStatus}
@@ -137,7 +149,7 @@ class JobRepository:
                 select(Job)
                 .where(
                     Job.status == JobStatus.QUEUED.value,
-                    (Job.scheduled_at.is_(None) | (Job.scheduled_at <= now))
+                    (Job.scheduled_at.is_(None) | (Job.scheduled_at <= now)),
                 )
                 .order_by(Job.created_at.asc())
                 .limit(1)
@@ -155,7 +167,7 @@ class JobRepository:
                     "job_repo_claimed",
                     job_id=job.id,
                     worker_id=worker_id,
-                    attempt_count=job.attempt_count
+                    attempt_count=job.attempt_count,
                 )
             return job
         except Exception:
@@ -170,21 +182,27 @@ class JobRepository:
                 .where(
                     Job.id == job_id,
                     Job.worker_id == worker_id,
-                    Job.status.in_([JobStatus.CLAIMED.value, JobStatus.RUNNING.value])
+                    Job.status.in_([JobStatus.CLAIMED.value, JobStatus.RUNNING.value]),
                 )
                 .values(heartbeat_at=self._utc_now())
                 .returning(Job)
             )
             job = result.scalar_one_or_none()
             if job:
-                logger.debug("job_repo_heartbeat_updated", job_id=job_id, worker_id=worker_id)
+                logger.debug(
+                    "job_repo_heartbeat_updated", job_id=job_id, worker_id=worker_id
+                )
                 return True
             return False
         except Exception:
-            logger.exception("job_repo_heartbeat_failed", job_id=job_id, worker_id=worker_id)
+            logger.exception(
+                "job_repo_heartbeat_failed", job_id=job_id, worker_id=worker_id
+            )
             return False
 
-    async def release_stale_jobs(self, timeout_seconds: float, current_job_id: str = None) -> int:
+    async def release_stale_jobs(
+        self, timeout_seconds: float, current_job_id: str = None
+    ) -> int:
         """Release jobs that have been claimed too long without heartbeat.
 
         Args:
@@ -201,7 +219,7 @@ class JobRepository:
                     (
                         Job.heartbeat_at.is_(None)
                         | (Job.heartbeat_at < timeout_threshold)
-                    )
+                    ),
                 )
             )
             stale_jobs = list(result.scalars().all())
@@ -223,7 +241,7 @@ class JobRepository:
                         "job_repo_stale_released",
                         job_id=job.id,
                         attempt_count=job.attempt_count,
-                        scheduled_at=job.scheduled_at
+                        scheduled_at=job.scheduled_at,
                     )
                 else:
                     # Mark as failed after max retries
@@ -233,11 +251,13 @@ class JobRepository:
                     job.claimed_at = None
                     job.heartbeat_at = None
                     job.worker_id = None
-                    job.last_error = f"Job failed after {job.attempt_count} attempts (stale worker)"
+                    job.last_error = (
+                        f"Job failed after {job.attempt_count} attempts (stale worker)"
+                    )
                     logger.warning(
                         "job_repo_stale_failed",
                         job_id=job.id,
-                        attempt_count=job.attempt_count
+                        attempt_count=job.attempt_count,
                     )
 
             await self.session.flush()
@@ -258,7 +278,7 @@ class JobRepository:
                     (
                         Job.heartbeat_at.is_(None)
                         | (Job.heartbeat_at < timeout_threshold)
-                    )
+                    ),
                 )
             )
             stuck_jobs = list(result.scalars().all())
@@ -277,7 +297,7 @@ class JobRepository:
                     logger.info(
                         "job_repo_stuck_recovered",
                         job_id=job.id,
-                        attempt_count=job.attempt_count
+                        attempt_count=job.attempt_count,
                     )
                 else:
                     job.status = JobStatus.FAILED
@@ -291,7 +311,7 @@ class JobRepository:
                     logger.warning(
                         "job_repo_stuck_failed",
                         job_id=job.id,
-                        attempt_count=job.attempt_count
+                        attempt_count=job.attempt_count,
                     )
 
             await self.session.flush()
@@ -299,7 +319,7 @@ class JobRepository:
                 "job_repo_recovery_complete",
                 total=len(stuck_jobs),
                 recovered=recovered,
-                failed=failed
+                failed=failed,
             )
             return {"recovered": recovered, "failed": failed, "total": len(stuck_jobs)}
         except Exception:

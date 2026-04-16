@@ -3,11 +3,10 @@
 from datetime import UTC, datetime
 from typing import List, Optional
 
-from sqlalchemy import or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.logging_config import logger
 from app.models.db_models import Project, ProjectType
+from sqlalchemy import or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def utc_now_naive() -> datetime:
@@ -26,7 +25,9 @@ class ProjectRepository:
             self.session.add(project)
             await self.session.flush()
             await self.session.refresh(project)
-            logger.info("project_repo_created", project_id=project.id, name=project.name)
+            logger.info(
+                "project_repo_created", project_id=project.id, name=project.name
+            )
             return project
         except Exception:
             logger.exception("project_repo_create_failed")
@@ -34,7 +35,9 @@ class ProjectRepository:
 
     async def get_by_id(self, project_id: str) -> Optional[Project]:
         try:
-            result = await self.session.execute(select(Project).where(Project.id == project_id))
+            result = await self.session.execute(
+                select(Project).where(Project.id == project_id)
+            )
             return result.scalar_one_or_none()
         except Exception:
             logger.exception("project_repo_get_failed", project_id=project_id)
@@ -108,9 +111,14 @@ class ProjectRepository:
                 "last_export_at",
                 "last_job_id",
             }
-            update_data = {key: value for key, value in kwargs.items() if key in allowed_fields}
+            update_data = {
+                key: value for key, value in kwargs.items() if key in allowed_fields
+            }
             result = await self.session.execute(
-                update(Project).where(Project.id == project_id).values(**update_data).returning(Project)
+                update(Project)
+                .where(Project.id == project_id)
+                .values(**update_data)
+                .returning(Project)
             )
             project = result.scalar_one_or_none()
             if project:
@@ -132,7 +140,9 @@ class ProjectRepository:
             logger.exception("project_repo_delete_failed", project_id=project_id)
             return False
 
-    async def add_export(self, project_id: str, filename: str, path: str) -> Optional[Project]:
+    async def add_export(
+        self, project_id: str, filename: str, path: str
+    ) -> Optional[Project]:
         try:
             project = await self.get_by_id(project_id)
             if not project:
@@ -146,7 +156,9 @@ class ProjectRepository:
                     "exported_at": utc_now_naive().isoformat(),
                 }
             )
-            return await self.update(project_id, exports=exports, last_export_at=utc_now_naive())
+            return await self.update(
+                project_id, exports=exports, last_export_at=utc_now_naive()
+            )
         except Exception:
             logger.exception("project_repo_add_export_failed", project_id=project_id)
             return None

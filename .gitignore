@@ -42,3 +42,13 @@ e2e/node_modules/
 e2e/playwright-report/
 e2e/test-results/
 .env.venv-mg/
+.env
+
+# Test results and coverage
+test-results/
+coverage.xml
+.coverage
+.pytest_cache/
+
+# Docker
+docker-compose.override.yml

@@ -4,12 +4,11 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.errors import InvalidStateError
 from app.logging_config import logger
 from app.models.db_models import Project, ProjectType
 from app.repositories import ProjectRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ProjectService:
@@ -63,7 +62,12 @@ class ProjectService:
             last_job_id=last_job_id,
         )
         created = await self.project_repo.create(project)
-        logger.info("project_created", project_id=created.id, name=name, project_type=normalized_type)
+        logger.info(
+            "project_created",
+            project_id=created.id,
+            name=name,
+            project_type=normalized_type,
+        )
         return self._to_api_dict(created)
 
     async def get_project(self, project_id: str) -> Optional[dict]:
@@ -80,7 +84,9 @@ class ProjectService:
     ) -> List[dict]:
         try:
             type_filter = ProjectType(project_type) if project_type else None
-            projects = await self.project_repo.get_all(project_type=type_filter, genre=genre, limit=limit)
+            projects = await self.project_repo.get_all(
+                project_type=type_filter, genre=genre, limit=limit
+            )
             return [self._to_api_dict(project) for project in projects]
         except ValueError as exc:
             raise InvalidStateError(
@@ -128,24 +134,32 @@ class ProjectService:
             logger.exception("project_delete_failed", project_id=project_id)
             return False
 
-    async def update_project_metadata(self, project_id: str, metadata: dict) -> Optional[dict]:
+    async def update_project_metadata(
+        self, project_id: str, metadata: dict
+    ) -> Optional[dict]:
         try:
             project = await self.project_repo.get_by_id(project_id)
             if not project:
                 return None
             current_metadata = project.metadata_json or {}
             current_metadata.update(metadata)
-            updated = await self.project_repo.update(project_id, metadata_json=current_metadata)
+            updated = await self.project_repo.update(
+                project_id, metadata_json=current_metadata
+            )
             return self._to_api_dict(updated) if updated else None
         except Exception:
             logger.exception("project_metadata_update_failed", project_id=project_id)
             return None
 
-    async def add_export(self, project_id: str, filename: str, path: str) -> Optional[dict]:
+    async def add_export(
+        self, project_id: str, filename: str, path: str
+    ) -> Optional[dict]:
         try:
             updated = await self.project_repo.add_export(project_id, filename, path)
             if updated:
-                logger.info("project_export_recorded", project_id=project_id, filename=filename)
+                logger.info(
+                    "project_export_recorded", project_id=project_id, filename=filename
+                )
             return self._to_api_dict(updated) if updated else None
         except Exception:
             logger.exception("project_export_add_failed", project_id=project_id)

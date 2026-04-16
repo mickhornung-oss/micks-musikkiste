@@ -51,9 +51,17 @@ class Settings(BaseSettings):
     COMFYUI_URL: str = "http://127.0.0.1:8188"
     COMFYUI_AUTOSTART: bool = True
     COMFYUI_START_TIMEOUT: int = 45
-    COMFYUI_EXE: str = str(Path.home() / "AppData" / "Local" / "Programs" / "ComfyUI" / "ComfyUI.exe")
+    COMFYUI_EXE: str = str(
+        Path.home() / "AppData" / "Local" / "Programs" / "ComfyUI" / "ComfyUI.exe"
+    )
     COMFYUI_SERVER_ROOT: str = str(
-        Path.home() / "AppData" / "Local" / "Programs" / "ComfyUI" / "resources" / "ComfyUI"
+        Path.home()
+        / "AppData"
+        / "Local"
+        / "Programs"
+        / "ComfyUI"
+        / "resources"
+        / "ComfyUI"
     )
     COMFYUI_SERVER_PYTHON: str = str(
         Path.home()

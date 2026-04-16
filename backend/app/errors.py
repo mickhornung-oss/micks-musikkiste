@@ -22,15 +22,33 @@ class AppError(Exception):
 
 
 class NotFoundError(AppError):
-    def __init__(self, message: str, *, code: str = "not_found", details: Optional[dict[str, Any]] = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "not_found",
+        details: Optional[dict[str, Any]] = None,
+    ):
         super().__init__(message, status_code=404, code=code, details=details)
 
 
 class InvalidStateError(AppError):
-    def __init__(self, message: str, *, code: str = "invalid_state", details: Optional[dict[str, Any]] = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "invalid_state",
+        details: Optional[dict[str, Any]] = None,
+    ):
         super().__init__(message, status_code=400, code=code, details=details)
 
 
 class ConfigurationError(AppError):
-    def __init__(self, message: str, *, code: str = "configuration_error", details: Optional[dict[str, Any]] = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "configuration_error",
+        details: Optional[dict[str, Any]] = None,
+    ):
         super().__init__(message, status_code=500, code=code, details=details)

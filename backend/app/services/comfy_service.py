@@ -2,16 +2,15 @@
 
 import asyncio
 import os
+import shlex
 import socket
 import subprocess
-import shlex
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from app.config import settings
 from app.logging_config import logger
-
 
 _comfy_state: dict[str, Any] = {
     "url": settings.COMFYUI_URL,
@@ -106,7 +105,11 @@ def _create_windows_junction(link_path: Path, target_path: Path) -> None:
         check=False,
     )
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f"mklink failed: {proc.returncode}")
+        raise RuntimeError(
+            proc.stderr.strip()
+            or proc.stdout.strip()
+            or f"mklink failed: {proc.returncode}"
+        )
 
 
 def _ensure_dir_link(link_path: Path, target_path: Path) -> dict[str, Any]:
@@ -149,15 +152,23 @@ def _ensure_ace_assets() -> dict[str, Any] | None:
         return None
 
     workflow = Path(workflow_path).expanduser()
-    vendor_root = workflow.parent.parent if workflow.parent.name == "workflows" else workflow.parent
+    vendor_root = (
+        workflow.parent.parent
+        if workflow.parent.name == "workflows"
+        else workflow.parent
+    )
     custom_target = vendor_root / "custom_nodes" / "ComfyUI_ACE-Step"
     model_target = vendor_root / "models" / "TTS" / "ACE-Step-v1-3.5B"
     server_root = Path(settings.COMFYUI_SERVER_ROOT).expanduser()
 
     assets = {
         "vendor_root": str(vendor_root),
-        "custom_node": _ensure_dir_link(server_root / "custom_nodes" / "ComfyUI_ACE-Step", custom_target),
-        "model_dir": _ensure_dir_link(server_root / "models" / "TTS" / "ACE-Step-v1-3.5B", model_target),
+        "custom_node": _ensure_dir_link(
+            server_root / "custom_nodes" / "ComfyUI_ACE-Step", custom_target
+        ),
+        "model_dir": _ensure_dir_link(
+            server_root / "models" / "TTS" / "ACE-Step-v1-3.5B", model_target
+        ),
     }
     return assets
 
@@ -169,7 +180,9 @@ def _launch_comfy_process(command: list[str], cwd: Path) -> subprocess.Popen:
         "stderr": subprocess.DEVNULL,
     }
     if os.name == "nt":
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        kwargs["creationflags"] = (
+            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        )
     return subprocess.Popen(command, **kwargs)
 
 
@@ -235,13 +248,25 @@ async def ensure_comfy_available() -> dict[str, Any]:
     try:
         proc = await asyncio.to_thread(_launch_comfy_process, command, cwd)
         _comfy_state["autostart_started"] = True
-        logger.info("comfy_autostart_spawned", pid=proc.pid, launch_mode=launch_mode, cwd=str(cwd))
+        logger.info(
+            "comfy_autostart_spawned",
+            pid=proc.pid,
+            launch_mode=launch_mode,
+            cwd=str(cwd),
+        )
     except Exception as exc:
         _comfy_state["last_error"] = str(exc)
-        logger.exception("comfy_autostart_spawn_failed", launch_mode=launch_mode, cwd=str(cwd), command=command)
+        logger.exception(
+            "comfy_autostart_spawn_failed",
+            launch_mode=launch_mode,
+            cwd=str(cwd),
+            command=command,
+        )
         return get_comfy_state()
 
-    deadline = asyncio.get_running_loop().time() + max(5, settings.COMFYUI_START_TIMEOUT)
+    deadline = asyncio.get_running_loop().time() + max(
+        5, settings.COMFYUI_START_TIMEOUT
+    )
     while asyncio.get_running_loop().time() < deadline:
         if _is_reachable(settings.COMFYUI_URL):
             _comfy_state["reachable"] = True

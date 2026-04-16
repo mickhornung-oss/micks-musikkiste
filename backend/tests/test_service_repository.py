@@ -2,9 +2,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-
 from app.errors import InvalidStateError
-from app.models.db_models import Job, JobStatus, Project, ProjectType, utc_now_naive
+from app.models.db_models import (Job, JobStatus, Project, ProjectType,
+                                  utc_now_naive)
 from app.repositories import JobRepository, ProjectRepository
 from app.services.engines.ace import AceEngineAdapter
 from app.services.music_service import MusicGenerationService
@@ -13,14 +13,18 @@ from conftest import TEST_PREFIX
 
 
 @pytest.mark.asyncio
-async def test_music_service_marks_missing_result_file_as_failed(db_session, test_token):
+async def test_music_service_marks_missing_result_file_as_failed(
+    db_session, test_token
+):
     job = Job(
         id=f"{TEST_PREFIX}{test_token}-missing-job",
         type="track",
         title=f"{TEST_PREFIX}{test_token}-missing-result",
         status=JobStatus.COMPLETED.value,
         progress=100,
-        result_file=str(Path("data/outputs") / f"{TEST_PREFIX}{test_token}-missing.wav"),
+        result_file=str(
+            Path("data/outputs") / f"{TEST_PREFIX}{test_token}-missing.wav"
+        ),
         metadata_json={"title": f"{TEST_PREFIX}{test_token}-missing-result"},
         engine="mock",
     )
@@ -133,7 +137,9 @@ def test_ace_engine_diagnostics_reports_missing_comfy(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_job_repository_recover_stuck_jobs_requeues_running_job(db_session, test_token):
+async def test_job_repository_recover_stuck_jobs_requeues_running_job(
+    db_session, test_token
+):
     repo = JobRepository(db_session)
     job = Job(
         id=f"{TEST_PREFIX}{test_token}-recover-job",
@@ -165,7 +171,9 @@ async def test_job_repository_recover_stuck_jobs_requeues_running_job(db_session
 
 
 @pytest.mark.asyncio
-async def test_job_repository_release_stale_jobs_marks_terminal_job_failed(db_session, test_token):
+async def test_job_repository_release_stale_jobs_marks_terminal_job_failed(
+    db_session, test_token
+):
     repo = JobRepository(db_session)
     job = Job(
         id=f"{TEST_PREFIX}{test_token}-stale-job",

@@ -6,14 +6,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.config import settings
 from app.database import async_session_factory
 from app.logging_config import logger
 from app.models.db_models import Job, JobStatus
 from app.repositories import JobRepository
 from app.services.engines import get_engine_adapter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class QueueWorker:
@@ -43,7 +42,9 @@ class QueueWorker:
 
         self._running = True
         self._shutdown_event.clear()
-        logger.info("worker_starting", worker_id=self.worker_id, mode=settings.ENGINE_MODE)
+        logger.info(
+            "worker_starting", worker_id=self.worker_id, mode=settings.ENGINE_MODE
+        )
 
         # Start background tasks
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
@@ -74,7 +75,8 @@ class QueueWorker:
 
         # Wait for worker/background tasks to finish
         tasks = [
-            t for t in [self._worker_task, self._heartbeat_task, self._stale_job_task]
+            t
+            for t in [self._worker_task, self._heartbeat_task, self._stale_job_task]
             if t and not t.done()
         ]
         if tasks:
@@ -115,7 +117,9 @@ class QueueWorker:
 
         logger.info("worker_loop_stopped", worker_id=self.worker_id)
 
-    async def _process_job(self, job: Job, job_repo: JobRepository, session: AsyncSession):
+    async def _process_job(
+        self, job: Job, job_repo: JobRepository, session: AsyncSession
+    ):
         """Process a single job."""
         job_id = job.id
         self._current_job_id = job_id
@@ -124,17 +128,13 @@ class QueueWorker:
             job_id=job_id,
             kind=job.type,
             attempt=job.attempt_count,
-            worker_id=self.worker_id
+            worker_id=self.worker_id,
         )
 
         try:
             # Update progress
             job.progress = 10
-            await job_repo.update_status(
-                job_id,
-                JobStatus.RUNNING,
-                progress=10
-            )
+            await job_repo.update_status(job_id, JobStatus.RUNNING, progress=10)
             await session.commit()
 
             # Generate audio
@@ -150,10 +150,7 @@ class QueueWorker:
 
             # Mark as completed
             await job_repo.update_status(
-                job_id,
-                JobStatus.COMPLETED,
-                progress=100,
-                result_file=str(result_path)
+                job_id, JobStatus.COMPLETED, progress=100, result_file=str(result_path)
             )
             job.finished_at = self._utc_now()
             job.last_error = None
@@ -163,7 +160,7 @@ class QueueWorker:
                 "job_processing_completed",
                 job_id=job_id,
                 kind=job.type,
-                worker_id=self.worker_id
+                worker_id=self.worker_id,
             )
 
         except asyncio.CancelledError:
@@ -179,11 +176,7 @@ class QueueWorker:
                 retry_delay = job.calculate_retry_delay()
                 scheduled_at = self._utc_now() + retry_delay
 
-                await job_repo.update_status(
-                    job_id,
-                    JobStatus.QUEUED,
-                    error=str(exc)
-                )
+                await job_repo.update_status(job_id, JobStatus.QUEUED, error=str(exc))
                 # Update scheduled_at directly
                 job.status = JobStatus.QUEUED
                 job.progress = 0
@@ -198,15 +191,11 @@ class QueueWorker:
                     "job_scheduled_for_retry",
                     job_id=job_id,
                     attempt=job.attempt_count,
-                    scheduled_at=scheduled_at.isoformat()
+                    scheduled_at=scheduled_at.isoformat(),
                 )
             else:
                 # Mark as permanently failed
-                await job_repo.update_status(
-                    job_id,
-                    JobStatus.FAILED,
-                    error=str(exc)
-                )
+                await job_repo.update_status(job_id, JobStatus.FAILED, error=str(exc))
                 job.scheduled_at = None
                 job.claimed_at = None
                 job.heartbeat_at = None
@@ -219,7 +208,7 @@ class QueueWorker:
                     "job_failed_permanently",
                     job_id=job_id,
                     attempt=job.attempt_count,
-                    error=str(exc)
+                    error=str(exc),
                 )
         finally:
             self._current_job_id = None
@@ -235,7 +224,9 @@ class QueueWorker:
                 if self._current_job_id:
                     async with async_session_factory() as session:
                         job_repo = JobRepository(session)
-                        await job_repo.update_heartbeat(self._current_job_id, self.worker_id)
+                        await job_repo.update_heartbeat(
+                            self._current_job_id, self.worker_id
+                        )
 
             except asyncio.CancelledError:
                 break
@@ -250,18 +241,22 @@ class QueueWorker:
 
         while self._running:
             try:
-                await asyncio.sleep(settings.WORKER_STALE_TIMEOUT / 2)  # Check twice per timeout period
+                await asyncio.sleep(
+                    settings.WORKER_STALE_TIMEOUT / 2
+                )  # Check twice per timeout period
 
                 async with async_session_factory() as session:
                     job_repo = JobRepository(session)
-                    released = await job_repo.release_stale_jobs(settings.WORKER_STALE_TIMEOUT, self._current_job_id)
+                    released = await job_repo.release_stale_jobs(
+                        settings.WORKER_STALE_TIMEOUT, self._current_job_id
+                    )
                     await session.commit()
 
                     if released > 0:
                         logger.info(
                             "stale_jobs_released",
                             worker_id=self.worker_id,
-                            count=released
+                            count=released,
                         )
 
             except asyncio.CancelledError:
@@ -279,7 +274,11 @@ class QueueWorker:
             "engine": self.engine.name,
             "current_job_id": self._current_job_id,
             "has_current_job": self._current_job is not None,
-            "current_job_processing": self._current_job is not None and not self._current_job.done() if self._current_job else False
+            "current_job_processing": (
+                self._current_job is not None and not self._current_job.done()
+                if self._current_job
+                else False
+            ),
         }
 
 

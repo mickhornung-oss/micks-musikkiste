@@ -3,30 +3,31 @@
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
-from app.models import TrackPreset, BeatPreset, PresetValues
+
+from app.models import BeatPreset, PresetValues, TrackPreset
 
 
 class PresetsManager:
     """Verwaltet Presets für Track- und Beat-Generierung"""
-    
+
     def __init__(self):
         """Initialisiere Preset-Manager"""
         self.presets_dir = Path(__file__).parent.parent.parent / "data" / "presets"
         self.presets_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Lade oder erstelle Standard-Presets
         self._ensure_default_presets()
-    
+
     def _ensure_default_presets(self):
         """Stelle sicher, dass Standard-Presets existieren"""
         tracks_file = self.presets_dir / "track_presets.json"
         beats_file = self.presets_dir / "beat_presets.json"
-        
+
         if not tracks_file.exists():
             self._create_default_track_presets()
         if not beats_file.exists():
             self._create_default_beat_presets()
-    
+
     def _create_default_track_presets(self):
         """Erstelle Standard Track-Presets"""
         presets = {
@@ -48,9 +49,9 @@ class PresetsManager:
                         "catchiness": 2,
                         "vocal_strength": 0,
                         "heaviness": 7,
-                        "melody_amount": 1
+                        "melody_amount": 1,
                     },
-                    "tags": ["techno", "dark", "minimal"]
+                    "tags": ["techno", "dark", "minimal"],
                 },
                 {
                     "id": "techno_melodic",
@@ -69,9 +70,9 @@ class PresetsManager:
                         "catchiness": 6,
                         "vocal_strength": 2,
                         "heaviness": 5,
-                        "melody_amount": 7
+                        "melody_amount": 7,
                     },
-                    "tags": ["techno", "melodic", "emotional"]
+                    "tags": ["techno", "melodic", "emotional"],
                 },
                 {
                     "id": "techno_club",
@@ -90,9 +91,9 @@ class PresetsManager:
                         "catchiness": 5,
                         "vocal_strength": 1,
                         "heaviness": 8,
-                        "melody_amount": 3
+                        "melody_amount": 3,
                     },
-                    "tags": ["techno", "club", "dance"]
+                    "tags": ["techno", "club", "dance"],
                 },
                 {
                     "id": "techno_hard",
@@ -111,9 +112,9 @@ class PresetsManager:
                         "catchiness": 1,
                         "vocal_strength": 0,
                         "heaviness": 10,
-                        "melody_amount": 0
+                        "melody_amount": 0,
                     },
-                    "tags": ["techno", "hard", "underground"]
+                    "tags": ["techno", "hard", "underground"],
                 },
                 {
                     "id": "hiphop_boombap",
@@ -123,7 +124,12 @@ class PresetsManager:
                     "default_mood": "neutral",
                     "recommended_language": "en",
                     "recommended_duration": 180,
-                    "negative_prompts": ["trap hats", "edm risers", "four on the floor", "too modern"],
+                    "negative_prompts": [
+                        "trap hats",
+                        "edm risers",
+                        "four on the floor",
+                        "too modern",
+                    ],
                     "style_description": "Classic boom bap with dusty drums, chopped soul texture, strong snare and head-nod groove.",
                     "values": {
                         "energy": 5,
@@ -132,9 +138,9 @@ class PresetsManager:
                         "catchiness": 7,
                         "vocal_strength": 5,
                         "heaviness": 6,
-                        "melody_amount": 4
+                        "melody_amount": 4,
                     },
-                    "tags": ["hiphop", "boom bap", "dusty drums", "head nod"]
+                    "tags": ["hiphop", "boom bap", "dusty drums", "head nod"],
                 },
                 {
                     "id": "hiphop_trap",
@@ -144,7 +150,11 @@ class PresetsManager:
                     "default_mood": "energetic",
                     "recommended_language": "en",
                     "recommended_duration": 180,
-                    "negative_prompts": ["boom bap swing", "rock guitars", "euphoric trance"],
+                    "negative_prompts": [
+                        "boom bap swing",
+                        "rock guitars",
+                        "euphoric trance",
+                    ],
                     "style_description": "Modern trap with heavy 808 sub, fast hats, dark space and punchy street energy.",
                     "values": {
                         "energy": 9,
@@ -153,9 +163,9 @@ class PresetsManager:
                         "catchiness": 7,
                         "vocal_strength": 4,
                         "heaviness": 9,
-                        "melody_amount": 2
+                        "melody_amount": 2,
                     },
-                    "tags": ["hiphop", "trap", "808", "dark"]
+                    "tags": ["hiphop", "trap", "808", "dark"],
                 },
                 {
                     "id": "hiphop_lofi",
@@ -174,9 +184,9 @@ class PresetsManager:
                         "catchiness": 4,
                         "vocal_strength": 2,
                         "heaviness": 2,
-                        "melody_amount": 7
+                        "melody_amount": 7,
                     },
-                    "tags": ["hiphop", "lofi", "chill"]
+                    "tags": ["hiphop", "lofi", "chill"],
                 },
                 {
                     "id": "hiphop_dark",
@@ -195,17 +205,17 @@ class PresetsManager:
                         "catchiness": 5,
                         "vocal_strength": 6,
                         "heaviness": 9,
-                        "melody_amount": 2
+                        "melody_amount": 2,
                     },
-                    "tags": ["hiphop", "dark", "urban", "808"]
-                }
+                    "tags": ["hiphop", "dark", "urban", "808"],
+                },
             ]
         }
-        
+
         presets_file = self.presets_dir / "track_presets.json"
         with presets_file.open("w", encoding="utf-8") as f:
             json.dump(presets, f, indent=2, ensure_ascii=False)
-    
+
     def _create_default_beat_presets(self):
         """Erstelle Standard Beat-Presets"""
         presets = {
@@ -228,9 +238,9 @@ class PresetsManager:
                         "catchiness": 1,
                         "vocal_strength": 0,
                         "heaviness": 7,
-                        "melody_amount": 0
+                        "melody_amount": 0,
                     },
-                    "tags": ["techno", "beat", "dark"]
+                    "tags": ["techno", "beat", "dark"],
                 },
                 {
                     "id": "beat_techno_club",
@@ -250,9 +260,9 @@ class PresetsManager:
                         "catchiness": 2,
                         "vocal_strength": 0,
                         "heaviness": 8,
-                        "melody_amount": 1
+                        "melody_amount": 1,
                     },
-                    "tags": ["techno", "beat", "club"]
+                    "tags": ["techno", "beat", "club"],
                 },
                 {
                     "id": "beat_hiphop_boom",
@@ -262,7 +272,12 @@ class PresetsManager:
                     "default_mood": "neutral",
                     "recommended_duration": 180,
                     "recommended_tempo": 95,
-                    "negative_prompts": ["trap hats", "techno kick", "edm riser", "overcompressed"],
+                    "negative_prompts": [
+                        "trap hats",
+                        "techno kick",
+                        "edm riser",
+                        "overcompressed",
+                    ],
                     "style_description": "Classic boom bap beat with dusty drums, chopped sample feel, strong snare and head-nod pocket.",
                     "drum_kit_hint": "vintage",
                     "values": {
@@ -272,9 +287,9 @@ class PresetsManager:
                         "catchiness": 6,
                         "vocal_strength": 0,
                         "heaviness": 5,
-                        "melody_amount": 2
+                        "melody_amount": 2,
                     },
-                    "tags": ["hiphop", "boom bap", "dusty drums", "head nod"]
+                    "tags": ["hiphop", "boom bap", "dusty drums", "head nod"],
                 },
                 {
                     "id": "beat_hiphop_trap",
@@ -284,7 +299,11 @@ class PresetsManager:
                     "default_mood": "energetic",
                     "recommended_duration": 180,
                     "recommended_tempo": 100,
-                    "negative_prompts": ["boom bap swing", "jazzy samples", "trance leads"],
+                    "negative_prompts": [
+                        "boom bap swing",
+                        "jazzy samples",
+                        "trance leads",
+                    ],
                     "style_description": "Modern trap beat with heavy 808 glide, tight hats, sparse melody and dark modern bounce.",
                     "drum_kit_hint": "808",
                     "values": {
@@ -294,17 +313,17 @@ class PresetsManager:
                         "catchiness": 6,
                         "vocal_strength": 0,
                         "heaviness": 9,
-                        "melody_amount": 0
+                        "melody_amount": 0,
                     },
-                    "tags": ["hiphop", "trap", "808", "dark bounce"]
-                }
+                    "tags": ["hiphop", "trap", "808", "dark bounce"],
+                },
             ]
         }
-        
+
         presets_file = self.presets_dir / "beat_presets.json"
         with presets_file.open("w", encoding="utf-8") as f:
             json.dump(presets, f, indent=2, ensure_ascii=False)
-    
+
     def get_track_presets(self, category: Optional[str] = None) -> List[Dict]:
         """Hole Track-Presets"""
         try:
@@ -313,16 +332,16 @@ class PresetsManager:
                 with presets_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
                     presets = data.get("presets", [])
-                    
+
                     if category:
                         presets = [p for p in presets if p.get("category") == category]
-                    
+
                     return presets
         except Exception as e:
             print(f"Fehler beim Laden von Track-Presets: {e}")
-        
+
         return []
-    
+
     def get_beat_presets(self, category: Optional[str] = None) -> List[Dict]:
         """Hole Beat-Presets"""
         try:
@@ -331,16 +350,16 @@ class PresetsManager:
                 with presets_file.open("r", encoding="utf-8") as f:
                     data = json.load(f)
                     presets = data.get("presets", [])
-                    
+
                     if category:
                         presets = [p for p in presets if p.get("category") == category]
-                    
+
                     return presets
         except Exception as e:
             print(f"Fehler beim Laden von Beat-Presets: {e}")
-        
+
         return []
-    
+
     def get_track_preset(self, preset_id: str) -> Optional[Dict]:
         """Hole ein spezifisches Track-Preset"""
         presets = self.get_track_presets()
@@ -348,7 +367,7 @@ class PresetsManager:
             if preset.get("id") == preset_id:
                 return preset
         return None
-    
+
     def get_beat_preset(self, preset_id: str) -> Optional[Dict]:
         """Hole ein spezifisches Beat-Preset"""
         presets = self.get_beat_presets()
@@ -365,16 +384,16 @@ class PresetsManager:
             if text and text not in merged:
                 merged.append(text)
         return merged
-    
+
     def apply_track_preset(self, preset_id: str, request_data: dict) -> dict:
         """Wende ein Track-Preset auf Request-Daten an"""
         preset = self.get_track_preset(preset_id)
         if not preset:
             return request_data
-        
+
         # Überschreibe mit Preset-Werten (aber nur wenn nicht explizit gesetzt)
         values = preset.get("values", {})
-        
+
         # Setze Preset-Defaults nur wenn nicht explizit in Request vorhanden
         if "energy" not in request_data or request_data["energy"] == 5:
             request_data["energy"] = values.get("energy", 5)
@@ -386,7 +405,7 @@ class PresetsManager:
             request_data["catchiness"] = values.get("catchiness", 5)
         if "vocal_strength" not in request_data or request_data["vocal_strength"] == 5:
             request_data["vocal_strength"] = values.get("vocal_strength", 5)
-        
+
         # Kombiniere negative Prompts
         request_data["negative_prompts"] = self._merge_unique_strings(
             request_data.get("negative_prompts"),
@@ -398,22 +417,25 @@ class PresetsManager:
             preset.get("tags", []),
         )
         request_data["generation_mode"] = "full_track"
-        request_data["instrumental_preferred"] = int(request_data.get("vocal_strength", values.get("vocal_strength", 5))) <= 1
+        request_data["instrumental_preferred"] = (
+            int(request_data.get("vocal_strength", values.get("vocal_strength", 5)))
+            <= 1
+        )
 
         # Speichere Preset-ID
         request_data["preset_used"] = preset_id
-        
+
         return request_data
-    
+
     def apply_beat_preset(self, preset_id: str, request_data: dict) -> dict:
         """Wende ein Beat-Preset auf Request-Daten an"""
         preset = self.get_beat_preset(preset_id)
         if not preset:
             return request_data
-        
+
         # Ähnliche Logik wie bei Track-Presets
         values = preset.get("values", {})
-        
+
         if "energy" not in request_data or request_data["energy"] == 6:
             request_data["energy"] = values.get("energy", 6)
         if "tempo" not in request_data or request_data["tempo"] == 120:
@@ -422,7 +444,7 @@ class PresetsManager:
             request_data["heaviness"] = values.get("heaviness", 5)
         if "melody_amount" not in request_data or request_data["melody_amount"] == 3:
             request_data["melody_amount"] = values.get("melody_amount", 3)
-        
+
         request_data["negative_prompts"] = self._merge_unique_strings(
             request_data.get("negative_prompts"),
             preset.get("negative_prompts", []),
@@ -437,7 +459,7 @@ class PresetsManager:
         request_data["instrumental_preferred"] = True
 
         request_data["preset_used"] = preset_id
-        
+
         return request_data
 
 

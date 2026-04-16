@@ -4,21 +4,13 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import FileResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.config import settings
 from app.database import check_db_connection, get_db_session
 from app.errors import InvalidStateError, NotFoundError
 from app.logging_config import logger
-from app.models import (
-    BeatGenerationRequest,
-    DiagnosticsResponse,
-    SaveProjectRequest,
-    SystemStatus,
-    TrackGenerationRequest,
-)
+from app.models import (BeatGenerationRequest, DiagnosticsResponse,
+                        SaveProjectRequest, SystemStatus,
+                        TrackGenerationRequest)
 from app.observability import runtime_stats
 from app.repositories.job_repository import JobRepository
 from app.services.engines import get_engine_diagnostics
@@ -26,24 +18,35 @@ from app.services.music_service import MusicGenerationService
 from app.services.presets import presets_manager
 from app.services.project_service import ProjectService
 from app.services.queue_worker import get_worker
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
 
-async def get_music_service(session: AsyncSession = Depends(get_db_session)) -> MusicGenerationService:
+async def get_music_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> MusicGenerationService:
     return MusicGenerationService(session)
 
 
-async def get_project_service(session: AsyncSession = Depends(get_db_session)) -> ProjectService:
+async def get_project_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> ProjectService:
     return ProjectService(session)
 
 
 def _count_output_files() -> int:
-    return len(list(settings.OUTPUTS_DIR.glob("*.mp3"))) + len(list(settings.OUTPUTS_DIR.glob("*.wav")))
+    return len(list(settings.OUTPUTS_DIR.glob("*.mp3"))) + len(
+        list(settings.OUTPUTS_DIR.glob("*.wav"))
+    )
 
 
 @router.get("/health")
-async def health_check(project_service: ProjectService = Depends(get_project_service)) -> SystemStatus:
+async def health_check(
+    project_service: ProjectService = Depends(get_project_service),
+) -> SystemStatus:
     database = await check_db_connection()
     return SystemStatus(
         status="ok" if database["ok"] else "degraded",
@@ -66,7 +69,9 @@ async def get_worker_status():
 
 
 @router.get("/api/diagnostics")
-async def get_diagnostics(session: AsyncSession = Depends(get_db_session)) -> DiagnosticsResponse:
+async def get_diagnostics(
+    session: AsyncSession = Depends(get_db_session),
+) -> DiagnosticsResponse:
     job_repo = JobRepository(session)
     database = await check_db_connection()
     job_counts = await job_repo.get_status_counts()
@@ -110,7 +115,11 @@ async def get_beat_presets(category: Optional[str] = Query(None)) -> dict:
 async def get_track_preset(preset_id: str) -> dict:
     preset = presets_manager.get_track_preset(preset_id)
     if not preset:
-        raise NotFoundError("Preset nicht gefunden", code="track_preset_not_found", details={"preset_id": preset_id})
+        raise NotFoundError(
+            "Preset nicht gefunden",
+            code="track_preset_not_found",
+            details={"preset_id": preset_id},
+        )
     return {"success": True, "data": preset}
 
 
@@ -118,7 +127,11 @@ async def get_track_preset(preset_id: str) -> dict:
 async def get_beat_preset(preset_id: str) -> dict:
     preset = presets_manager.get_beat_preset(preset_id)
     if not preset:
-        raise NotFoundError("Preset nicht gefunden", code="beat_preset_not_found", details={"preset_id": preset_id})
+        raise NotFoundError(
+            "Preset nicht gefunden",
+            code="beat_preset_not_found",
+            details={"preset_id": preset_id},
+        )
     return {"success": True, "data": preset}
 
 
@@ -129,7 +142,9 @@ async def generate_track(
 ) -> dict:
     request_data = request.model_dump()
     if request_data.get("preset_id"):
-        request_data = presets_manager.apply_track_preset(request_data["preset_id"], request_data)
+        request_data = presets_manager.apply_track_preset(
+            request_data["preset_id"], request_data
+        )
     job_id = await music_service.generate_track(request_data)
     return {
         "success": True,
@@ -150,7 +165,9 @@ async def generate_beat(
 ) -> dict:
     request_data = request.model_dump()
     if request_data.get("preset_id"):
-        request_data = presets_manager.apply_beat_preset(request_data["preset_id"], request_data)
+        request_data = presets_manager.apply_beat_preset(
+            request_data["preset_id"], request_data
+        )
     job_id = await music_service.generate_beat(request_data)
     return {
         "success": True,
@@ -171,7 +188,9 @@ async def get_job_status(
 ) -> dict:
     job = await music_service.get_job_status(job_id)
     if not job:
-        raise NotFoundError("Job nicht gefunden", code="job_not_found", details={"job_id": job_id})
+        raise NotFoundError(
+            "Job nicht gefunden", code="job_not_found", details={"job_id": job_id}
+        )
     return {"success": True, "data": job}
 
 
@@ -180,7 +199,11 @@ async def list_jobs(
     status: Optional[str] = Query(None),
     music_service: MusicGenerationService = Depends(get_music_service),
 ) -> dict:
-    jobs = await (music_service.get_jobs_by_status(status) if status else music_service.list_jobs())
+    jobs = await (
+        music_service.get_jobs_by_status(status)
+        if status
+        else music_service.list_jobs()
+    )
     return {"success": True, "data": {"total": len(jobs), "jobs": jobs}}
 
 
@@ -212,7 +235,9 @@ async def list_projects(
     genre: Optional[str] = Query(None),
     project_service: ProjectService = Depends(get_project_service),
 ) -> dict:
-    projects = await project_service.list_projects(project_type=project_type, genre=genre)
+    projects = await project_service.list_projects(
+        project_type=project_type, genre=genre
+    )
     return {"success": True, "data": {"total": len(projects), "projects": projects}}
 
 
@@ -232,10 +257,16 @@ async def search_projects(
 
 
 @router.get("/api/projects/{project_id}")
-async def get_project(project_id: str, project_service: ProjectService = Depends(get_project_service)) -> dict:
+async def get_project(
+    project_id: str, project_service: ProjectService = Depends(get_project_service)
+) -> dict:
     project = await project_service.get_project(project_id)
     if not project:
-        raise NotFoundError("Projekt nicht gefunden", code="project_not_found", details={"project_id": project_id})
+        raise NotFoundError(
+            "Projekt nicht gefunden",
+            code="project_not_found",
+            details={"project_id": project_id},
+        )
     return {"success": True, "data": project}
 
 
@@ -246,7 +277,11 @@ async def delete_project(
 ) -> dict:
     success = await project_service.delete_project(project_id)
     if not success:
-        raise NotFoundError("Projekt nicht gefunden", code="project_not_found", details={"project_id": project_id})
+        raise NotFoundError(
+            "Projekt nicht gefunden",
+            code="project_not_found",
+            details={"project_id": project_id},
+        )
     return {"success": True, "message": "Projekt gelöscht"}
 
 
@@ -260,11 +295,19 @@ async def export_audio(
 ) -> dict:
     job = await music_service.get_job_status(job_id)
     if not job or job.get("status") != "completed":
-        raise InvalidStateError("Job nicht abgeschlossen", code="job_not_completed", details={"job_id": job_id})
+        raise InvalidStateError(
+            "Job nicht abgeschlossen",
+            code="job_not_completed",
+            details={"job_id": job_id},
+        )
 
     source_file = Path(job.get("result_file") or "")
     if not source_file.exists():
-        raise NotFoundError("Audiodatei nicht gefunden", code="job_audio_not_found", details={"job_id": job_id})
+        raise NotFoundError(
+            "Audiodatei nicht gefunden",
+            code="job_audio_not_found",
+            details={"job_id": job_id},
+        )
 
     export_filename = f"{export_name}_{source_file.name}"
     export_path = settings.EXPORTS_DIR / export_filename
@@ -273,7 +316,12 @@ async def export_audio(
     if project_id:
         await project_service.add_export(project_id, export_filename, str(export_path))
 
-    logger.info("job_export_completed", job_id=job_id, export_filename=export_filename, project_id=project_id)
+    logger.info(
+        "job_export_completed",
+        job_id=job_id,
+        export_filename=export_filename,
+        project_id=project_id,
+    )
     return {
         "success": True,
         "message": "Export abgeschlossen",
@@ -293,18 +341,30 @@ async def export_project_audio(
 ) -> dict:
     project = await project_service.get_project(project_id)
     if not project:
-        raise NotFoundError("Projekt nicht gefunden", code="project_not_found", details={"project_id": project_id})
+        raise NotFoundError(
+            "Projekt nicht gefunden",
+            code="project_not_found",
+            details={"project_id": project_id},
+        )
 
     source_path = Path(project.get("output_file") or "")
     if not source_path.exists():
-        raise NotFoundError("Audiodatei nicht gefunden", code="project_audio_not_found", details={"project_id": project_id})
+        raise NotFoundError(
+            "Audiodatei nicht gefunden",
+            code="project_audio_not_found",
+            details={"project_id": project_id},
+        )
 
     safe_name = (export_name or project.get("name", "export")).replace(" ", "_")
     export_filename = f"{safe_name}_{source_path.name}"
     export_path = settings.EXPORTS_DIR / export_filename
     shutil.copy2(source_path, export_path)
     await project_service.add_export(project_id, export_filename, str(export_path))
-    logger.info("project_export_completed", project_id=project_id, export_filename=export_filename)
+    logger.info(
+        "project_export_completed",
+        project_id=project_id,
+        export_filename=export_filename,
+    )
 
     return {
         "success": True,
@@ -326,7 +386,11 @@ async def get_audio(filename: str):
 async def get_export(filename: str):
     file_path = settings.EXPORTS_DIR / filename
     if not file_path.exists():
-        raise NotFoundError("Export nicht gefunden", code="export_not_found", details={"filename": filename})
+        raise NotFoundError(
+            "Export nicht gefunden",
+            code="export_not_found",
+            details={"filename": filename},
+        )
     media_type = "audio/wav" if filename.lower().endswith(".wav") else "audio/mpeg"
     return FileResponse(path=file_path, media_type=media_type, filename=filename)
 
@@ -335,6 +399,10 @@ async def get_export(filename: str):
 async def get_output(filename: str):
     file_path = settings.OUTPUTS_DIR / filename
     if not file_path.exists():
-        raise NotFoundError("Output nicht gefunden", code="output_not_found", details={"filename": filename})
+        raise NotFoundError(
+            "Output nicht gefunden",
+            code="output_not_found",
+            details={"filename": filename},
+        )
     media_type = "audio/wav" if filename.lower().endswith(".wav") else "audio/mpeg"
     return FileResponse(path=file_path, media_type=media_type, filename=filename)

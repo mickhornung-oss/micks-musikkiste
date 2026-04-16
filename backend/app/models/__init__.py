@@ -1,12 +1,14 @@
 """Datenmodelle für Micks Musikkiste"""
 
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
 from datetime import datetime
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class PresetValues(BaseModel):
     """Basis-Werte für Presets"""
+
     energy: int = Field(default=5, ge=1, le=10)
     tempo: int = Field(default=120, ge=60, le=180)
     creativity: int = Field(default=5, ge=1, le=10)
@@ -18,6 +20,7 @@ class PresetValues(BaseModel):
 
 class TrackPreset(BaseModel):
     """Preset für Track-Generierung"""
+
     id: str
     name: str
     category: str = Field(..., description="Kategorie: techno, hiphop, etc.")
@@ -33,6 +36,7 @@ class TrackPreset(BaseModel):
 
 class BeatPreset(BaseModel):
     """Preset für Beat-Generierung"""
+
     id: str
     name: str
     category: str = Field(..., description="Kategorie: techno, hiphop, etc.")
@@ -49,15 +53,18 @@ class BeatPreset(BaseModel):
 
 class TrackGenerationRequest(BaseModel):
     """Request-Modell für Track-Generierung (V2: mit Preset)"""
+
     title: str = Field(..., min_length=1, max_length=100)
     genre: str = Field(..., description="z.B. Techno, Hip-Hop, House")
-    mood: str = Field(default="neutral", description="z.B. energetic, melancholic, dark")
+    mood: str = Field(
+        default="neutral", description="z.B. energetic, melancholic, dark"
+    )
     language: str = Field(default="en", description="Sprache für Vocals")
     duration: int = Field(default=120, ge=30, le=600, description="Dauer in Sekunden")
     lyrics: Optional[str] = Field(None, description="Text-Idee oder Lyrics")
     negative_prompts: Optional[List[str]] = Field(default_factory=list)
     preset_id: Optional[str] = Field(None, description="Optionales Preset-ID")
-    
+
     # Regler
     energy: int = Field(default=5, ge=1, le=10)
     tempo: int = Field(default=120, ge=60, le=180)
@@ -68,12 +75,13 @@ class TrackGenerationRequest(BaseModel):
 
 class BeatGenerationRequest(BaseModel):
     """Request-Modell für Beat-Generierung (V2: mit Preset)"""
+
     title: str = Field(..., min_length=1, max_length=100)
     genre: str = Field(..., description="z.B. Techno, Hip-Hop")
     mood: str = Field(default="dark", description="z.B. hard, groovy, minimalist")
     duration: int = Field(default=120, ge=30, le=600, description="Dauer in Sekunden")
     preset_id: Optional[str] = Field(None, description="Optionales Preset-ID")
-    
+
     # Regler
     tempo: int = Field(default=120, ge=60, le=180)
     heaviness: int = Field(default=5, ge=1, le=10, description="Druck/Härte")
@@ -83,11 +91,15 @@ class BeatGenerationRequest(BaseModel):
 
 class GenerationJob(BaseModel):
     """Modell für Generierungs-Job (V2: mit erweiterten States)"""
+
     id: str
     type: str = Field(..., description="track oder beat")
     title: str
     created_at: datetime
-    status: str = Field(default="pending", description="pending, queued, generating, completed, failed, cancelled")
+    status: str = Field(
+        default="pending",
+        description="pending, queued, generating, completed, failed, cancelled",
+    )
     progress: int = Field(default=0, ge=0, le=100)
     error: Optional[str] = None
     result_file: Optional[str] = None
@@ -97,6 +109,7 @@ class GenerationJob(BaseModel):
 
 class Project(BaseModel):
     """Modell für ein gespeichertes Projekt (V2: erweitert)"""
+
     id: str
     name: str
     type: str = Field(..., description="track oder beat")
@@ -119,6 +132,7 @@ class Project(BaseModel):
 
 class SaveProjectRequest(BaseModel):
     """Request für das Anlegen eines Projekts (V2 Phase 2)"""
+
     name: str
     project_type: str
     genre: str
@@ -134,6 +148,7 @@ class SaveProjectRequest(BaseModel):
 
 class SystemStatus(BaseModel):
     """System-Status Modell"""
+
     status: str = Field(default="ok")
     engine_type: str
     engine_name: str = Field(default="unknown")
@@ -145,6 +160,7 @@ class SystemStatus(BaseModel):
 
 class DiagnosticsResponse(BaseModel):
     """Diagnose-Daten fuer lokalen Betrieb."""
+
     status: str = Field(default="ok")
     version: str
     engine_type: str
@@ -159,6 +175,7 @@ class DiagnosticsResponse(BaseModel):
 
 class APIResponse(BaseModel):
     """Standard API-Response"""
+
     success: bool
     message: str
     data: Optional[dict] = None

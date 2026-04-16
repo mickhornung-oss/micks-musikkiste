@@ -4,8 +4,6 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.config import settings
 from app.errors import InvalidStateError
 from app.logging_config import logger
@@ -13,6 +11,7 @@ from app.models.db_models import Job, JobStatus
 from app.observability import runtime_stats
 from app.repositories import JobRepository
 from app.services.engines import get_engine_adapter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class MusicGenerationService:
@@ -26,7 +25,12 @@ class MusicGenerationService:
     async def generate_track(self, request_data: dict) -> str:
         job_id = str(uuid.uuid4())
         clean = self._normalize_request(request_data)
-        logger.info("job_generation_queued", job_id=job_id, kind="track", title=clean.get("title"))
+        logger.info(
+            "job_generation_queued",
+            job_id=job_id,
+            kind="track",
+            title=clean.get("title"),
+        )
         job = Job(
             id=job_id,
             type="track",
@@ -46,7 +50,12 @@ class MusicGenerationService:
     async def generate_beat(self, request_data: dict) -> str:
         job_id = str(uuid.uuid4())
         clean = self._normalize_request(request_data)
-        logger.info("job_generation_queued", job_id=job_id, kind="beat", title=clean.get("title"))
+        logger.info(
+            "job_generation_queued",
+            job_id=job_id,
+            kind="beat",
+            title=clean.get("title"),
+        )
         job = Job(
             id=job_id,
             type="beat",
@@ -73,7 +82,9 @@ class MusicGenerationService:
         duration = max(5, min(duration, 60))
         normalized["duration"] = duration
         normalized["duration_effective"] = duration
-        normalized["duration_requested"] = data.get("duration") if isinstance(data, dict) else duration
+        normalized["duration_requested"] = (
+            data.get("duration") if isinstance(data, dict) else duration
+        )
         return normalized
 
     async def get_job_status(self, job_id: str) -> Optional[dict]:
@@ -83,8 +94,12 @@ class MusicGenerationService:
         if job.status == JobStatus.COMPLETED.value:
             result = job.result_file
             if not result or not Path(result).exists():
-                logger.warning("job_result_file_missing", job_id=job_id, result_file=result)
-                await self.job_repo.update_status(job_id, JobStatus.FAILED, error="Ergebnisdatei nicht vorhanden")
+                logger.warning(
+                    "job_result_file_missing", job_id=job_id, result_file=result
+                )
+                await self.job_repo.update_status(
+                    job_id, JobStatus.FAILED, error="Ergebnisdatei nicht vorhanden"
+                )
                 await self.session.commit()
                 job = await self.job_repo.get_by_id(job_id)
         return job.to_dict() if job else None

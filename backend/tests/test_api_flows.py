@@ -14,7 +14,9 @@ def wait_for_job_completion(client, job_id, timeout=60):
         if last_payload["status"] in {"completed", "failed", "cancelled"}:
             return last_payload
         time.sleep(0.5)
-    raise AssertionError(f"Job {job_id} wurde nicht rechtzeitig abgeschlossen: {last_payload}")
+    raise AssertionError(
+        f"Job {job_id} wurde nicht rechtzeitig abgeschlossen: {last_payload}"
+    )
 
 
 def test_health_and_frontend_shell(client):
@@ -106,7 +108,9 @@ def test_mock_job_project_roundtrip_and_export(client, test_token):
     assert export_response.status_code == 200
     export_data = export_response.json()["data"]
     assert export_data["public_url"].startswith("/exports/")
-    export_file = Path("data") / export_data["public_url"].replace("/exports/", "exports/")
+    export_file = Path("data") / export_data["public_url"].replace(
+        "/exports/", "exports/"
+    )
     assert export_file.exists()
 
     loaded_project = client.get(f"/api/projects/{project['id']}")
@@ -117,7 +121,10 @@ def test_mock_job_project_roundtrip_and_export(client, test_token):
 
 
 def test_export_non_completed_job_returns_400(client, test_token):
-    response = client.post("/api/export/not-a-real-job", params={"export_name": f"{TEST_PREFIX}{test_token}-bad"})
+    response = client.post(
+        "/api/export/not-a-real-job",
+        params={"export_name": f"{TEST_PREFIX}{test_token}-bad"},
+    )
     assert response.status_code == 400
     payload = response.json()
     assert payload["success"] is False

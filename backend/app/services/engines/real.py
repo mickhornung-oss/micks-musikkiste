@@ -3,14 +3,15 @@
 import asyncio
 import shlex
 import shutil
+import subprocess
 import sys
 import uuid
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
 from app.config import settings
+
 from .base import EngineAdapter
 
 
@@ -21,13 +22,17 @@ class RealEngineAdapter(EngineAdapter):
         # Fallback: internes MusicGen-CLI, sonst engine_cli.py falls gesetzt
         cli_path = Path(__file__).parent.parent.parent.parent / "engine_musicgen.py"
         self.cli_path = cli_path
-        default_cmd = f"\"{sys.executable}\" \"{cli_path}\""
+        default_cmd = f'"{sys.executable}" "{cli_path}"'
         self.command = settings.ENGINE_REAL_COMMAND or default_cmd
 
     def diagnostics(self) -> dict:
         cmd_parts = shlex.split(self.command)
         executable = cmd_parts[0] if cmd_parts else ""
-        script_path = Path(cmd_parts[1]) if len(cmd_parts) > 1 and cmd_parts[1].endswith(".py") else self.cli_path
+        script_path = (
+            Path(cmd_parts[1])
+            if len(cmd_parts) > 1 and cmd_parts[1].endswith(".py")
+            else self.cli_path
+        )
         executable_ok = Path(executable).exists() or bool(shutil.which(executable))
         script_ok = script_path.exists()
         ready = executable_ok and script_ok
@@ -60,12 +65,19 @@ class RealEngineAdapter(EngineAdapter):
 
         cmd_parts = shlex.split(self.command)
         executable = cmd_parts[0] if cmd_parts else ""
-        if not executable or not (Path(executable).exists() or shutil.which(executable)):
-            raise RuntimeError(f"Engine-Kommando nicht gefunden: {executable or self.command}")
+        if not executable or not (
+            Path(executable).exists() or shutil.which(executable)
+        ):
+            raise RuntimeError(
+                f"Engine-Kommando nicht gefunden: {executable or self.command}"
+            )
         cmd_parts += [
-            "--type", kind,
-            "--output", str(output_path),
-            "--duration", str(duration),
+            "--type",
+            kind,
+            "--output",
+            str(output_path),
+            "--duration",
+            str(duration),
         ]
 
         # Mapping der wichtigsten Felder
@@ -90,7 +102,9 @@ class RealEngineAdapter(EngineAdapter):
         cmd_display = " ".join(shlex.quote(p) for p in cmd_parts)
 
         with open(debug_path, "a", encoding="utf-8") as fh:
-            fh.write(f"{datetime.now().isoformat()} | start | cmd={cmd_display} | payload={payload}\n")
+            fh.write(
+                f"{datetime.now().isoformat()} | start | cmd={cmd_display} | payload={payload}\n"
+            )
 
         try:
             proc = await asyncio.to_thread(
@@ -102,7 +116,9 @@ class RealEngineAdapter(EngineAdapter):
                 timeout=settings.ENGINE_TIMEOUT,
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Engine timeout nach {settings.ENGINE_TIMEOUT}s | cmd={cmd_display}")
+            raise RuntimeError(
+                f"Engine timeout nach {settings.ENGINE_TIMEOUT}s | cmd={cmd_display}"
+            )
 
         stdout_text = (proc.stdout or "").strip()
         stderr_text = (proc.stderr or "").strip()
@@ -117,10 +133,16 @@ class RealEngineAdapter(EngineAdapter):
 
         if proc.returncode != 0:
             err_text = stderr_text or stdout_text or "Unbekannter Fehler"
-            snippet = (stdout_text[:200] + "...") if len(stdout_text) > 200 else stdout_text
-            raise RuntimeError(f"Engine exit {proc.returncode}: {err_text} | stdout={snippet} | cmd={cmd_display}")
+            snippet = (
+                (stdout_text[:200] + "...") if len(stdout_text) > 200 else stdout_text
+            )
+            raise RuntimeError(
+                f"Engine exit {proc.returncode}: {err_text} | stdout={snippet} | cmd={cmd_display}"
+            )
 
         if not output_path.exists() or output_path.stat().st_size == 0:
-            raise RuntimeError(f"Engine meldete Erfolg, aber keine Ausgabedatei gefunden | cmd={cmd_display}")
+            raise RuntimeError(
+                f"Engine meldete Erfolg, aber keine Ausgabedatei gefunden | cmd={cmd_display}"
+            )
 
         return str(output_path)

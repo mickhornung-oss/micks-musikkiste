@@ -4,7 +4,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 import structlog
-
 from app.config import settings
 
 

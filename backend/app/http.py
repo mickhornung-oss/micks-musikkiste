@@ -4,13 +4,12 @@ import time
 import uuid
 
 import structlog
+from app.errors import AppError
+from app.observability import runtime_stats
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from app.errors import AppError
-from app.observability import runtime_stats
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
@@ -97,7 +96,9 @@ def install_error_handlers(app: FastAPI):
             404: "not_found",
             422: "validation_error",
         }.get(exc.status_code, "http_error")
-        structlog.get_logger().warning("http_error", status_code=exc.status_code, detail=detail)
+        structlog.get_logger().warning(
+            "http_error", status_code=exc.status_code, detail=detail
+        )
         return _error_payload(
             request=request,
             status_code=exc.status_code,

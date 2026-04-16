@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from app.config import settings
+
 from .base import EngineAdapter
 
 
@@ -27,12 +28,16 @@ class MockEngineAdapter(EngineAdapter):
         await asyncio.sleep(settings.ENGINE_MOCK_DELAY)
         output_filename = f"track_{uuid.uuid4().hex[:8]}.mp3"
         output_path = settings.OUTPUTS_DIR / output_filename
-        output_path.write_bytes(b"MOCK_AUDIO_TRACK_" + payload.get("title", "track").encode())
+        output_path.write_bytes(
+            b"MOCK_AUDIO_TRACK_" + payload.get("title", "track").encode()
+        )
         return str(output_path)
 
     async def generate_beat_audio(self, payload: Dict[str, Any]) -> str:
         await asyncio.sleep(settings.ENGINE_MOCK_DELAY)
         output_filename = f"beat_{uuid.uuid4().hex[:8]}.mp3"
         output_path = settings.OUTPUTS_DIR / output_filename
-        output_path.write_bytes(b"MOCK_AUDIO_BEAT_" + payload.get("title", "beat").encode())
+        output_path.write_bytes(
+            b"MOCK_AUDIO_BEAT_" + payload.get("title", "beat").encode()
+        )
         return str(output_path)

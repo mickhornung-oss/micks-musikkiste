@@ -7,6 +7,9 @@ import time
 import uuid
 from pathlib import Path
 
+# Cross-platform Python executable (works on Windows and Linux/CI)
+_PYTHON_EXE = sys.executable
+
 import httpx
 import pytest
 import pytest_asyncio
@@ -26,16 +29,14 @@ TEST_PREFIX = "pytest-mm-"
 async def cleanup_test_artifacts():
     async with async_session_factory() as session:
         await session.execute(
-            text(
-                """
+            text("""
                 UPDATE projects
                 SET last_job_id = NULL
                 WHERE name LIKE :prefix
                    OR last_job_id IN (
                        SELECT id FROM jobs WHERE title LIKE :prefix
                    )
-                """
-            ),
+                """),
             {"prefix": f"{TEST_PREFIX}%"},
         )
         await session.execute(
@@ -56,6 +57,7 @@ async def cleanup_test_artifacts():
         for path in settings.EXPORTS_DIR.glob(pattern):
             if path.is_file():
                 path.unlink(missing_ok=True)
+
 
 def cleanup_test_artifacts_sync():
     async def _cleanup():
@@ -81,7 +83,16 @@ def server():
     env["SERVER_PORT"] = str(test_port)
 
     process = subprocess.Popen(
-        [str(ROOT / ".venv" / "Scripts" / "python.exe"), "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(test_port)],
+        [
+            _PYTHON_EXE,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(test_port),
+        ],
         cwd=str(BACKEND_ROOT),
         env=env,
         stdout=subprocess.DEVNULL,
@@ -110,6 +121,7 @@ def server():
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait(timeout=10)
+
 
 @pytest.fixture()
 def client(server):

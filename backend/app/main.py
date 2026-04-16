@@ -2,11 +2,6 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-
 from app.config import settings
 from app.database import async_session_factory, close_db, init_db
 from app.http import RequestContextMiddleware, install_error_handlers
@@ -15,6 +10,10 @@ from app.repositories.job_repository import JobRepository
 from app.routes import router
 from app.services.comfy_service import ensure_comfy_available
 from app.services.queue_worker import start_worker, stop_worker
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 
 @asynccontextmanager
@@ -32,7 +31,7 @@ async def lifespan(app: FastAPI):
                 "recovery_complete",
                 recovered=recovery_result["recovered"],
                 failed=recovery_result["failed"],
-                total=recovery_result["total"]
+                total=recovery_result["total"],
             )
     except Exception as exc:
         logger.error("recovery_failed", error=str(exc))
