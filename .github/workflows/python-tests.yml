@@ -115,5 +115,39 @@ jobs:
         ENGINE_MODE: mock
         ENGINE_MOCK_DELAY: "1"
       run: |
-        pytest tests/ --asyncio-mode=auto -v || pytest tests/ --asyncio-mode=auto -v
+        set -o pipefail
+        pytest tests/ --asyncio-mode=auto -v 2>&1 | tee pytest-output.txt
+        status=${PIPESTATUS[0]}
+        if [ "$status" -ne 0 ]; then
+          pytest tests/ --asyncio-mode=auto -v 2>&1 | tee -a pytest-output.txt
+          status=${PIPESTATUS[0]}
+        fi
+        exit "$status"
+
+    - name: Summarize test failure
+      if: failure()
+      working-directory: backend
+      run: |
+        python - <<'PY'
+        from pathlib import Path
+
+        output_path = Path("pytest-output.txt")
+        if not output_path.exists():
+            print("::error title=pytest-failure::pytest-output.txt missing")
+            raise SystemExit(0)
+
+        text = output_path.read_text(encoding="utf-8", errors="replace")
+        interesting = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if " FAILED" in line or line.startswith("FAILED ") or line.startswith("ERROR "):
+                interesting.append(line)
+            elif line.startswith("E   "):
+                interesting.append(line)
+
+        message = " | ".join(interesting[:8])[:1500] if interesting else "Tests failed; inspect pytest-output.txt"
+        print(f"::error title=pytest-failure::{message}")
+        PY
 
