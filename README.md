@@ -39,6 +39,7 @@ Live endpoints:
 - API docs: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/health`
 - Diagnostics: `http://localhost:8000/api/diagnostics`
+- Version: `http://localhost:8000/api/version`
 
 ## Configuration
 
@@ -79,6 +80,7 @@ RELEASE_SHA=local
 - Release checklist: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
 - Latest release notes: [`docs/releases/v1.0.1.md`](docs/releases/v1.0.1.md)
 - Incident template: [`docs/incidents/INCIDENT_TEMPLATE.md`](docs/incidents/INCIDENT_TEMPLATE.md)
+- Latest incident example: [`docs/incidents/INC-2026-04-16-ci-stability.md`](docs/incidents/INC-2026-04-16-ci-stability.md)
 - Deployment smoke check:
 
 ```bash

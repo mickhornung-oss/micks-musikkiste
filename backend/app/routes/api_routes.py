@@ -81,6 +81,18 @@ async def get_worker_status():
     return worker.get_status()
 
 
+@router.get("/api/version")
+async def get_version() -> dict:
+    """Expose release metadata for deploy validation."""
+    return {
+        "success": True,
+        "data": {
+            "api_version": settings.API_VERSION,
+            "release": _release_info(),
+        },
+    }
+
+
 @router.get("/api/diagnostics")
 async def get_diagnostics(
     session: AsyncSession = Depends(get_db_session),
