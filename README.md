@@ -3,12 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-09a031.svg)](https://fastapi.tiangolo.com/)
-[![codecov](https://codecov.io/gh/mickhornung-oss/micks-musikkiste/branch/main/graph/badge.svg)](https://codecov.io/gh/mickhornung-oss/micks-musikkiste)
 [![Tests](https://github.com/mickhornung-oss/micks-musikkiste/actions/workflows/python-tests.yml/badge.svg)](https://github.com/mickhornung-oss/micks-musikkiste/actions)
 
-AI music production studio — FastAPI backend with async PostgreSQL, queue-based job processing, multi-engine abstraction, and structured observability.
-
-> **Deutsch:** Lokales KI-Musikstudio mit FastAPI-Backend, async PostgreSQL, Job-Queue und strukturiertem Observability-Layer.
+AI music production studio backend with FastAPI, async PostgreSQL, queue-based jobs, and structured observability.
 
 ## Architecture
 
@@ -27,7 +24,7 @@ AI music production studio — FastAPI backend with async PostgreSQL, queue-base
 # 1. Install dependencies
 pip install -r backend/requirements.txt
 
-# 2. Set environment variables (copy .env.example → .env)
+# 2. Set environment variables (copy .env.example to .env)
 cp .env.example .env
 
 # 3. Initialize database
@@ -39,7 +36,7 @@ python backend/run.py
 
 Live endpoints:
 - UI: `http://localhost:8000`
-- API Docs: `http://localhost:8000/docs`
+- API docs: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/health`
 - Diagnostics: `http://localhost:8000/api/diagnostics`
 
@@ -54,37 +51,49 @@ SERVER_HOST=127.0.0.1
 SERVER_PORT=8000
 LOG_LEVEL=info
 DEBUG=false
+APP_ENV=local
+RELEASE_VERSION=0.2.0
+RELEASE_SHA=local
 ```
 
 ## Engine Modes
 
 | Mode | Description |
 |---|---|
-| `mock` | Recommended for local dev — no external dependencies |
+| `mock` | Recommended for local dev, no external dependencies |
 | `ace` | Requires a running ComfyUI instance with ACE-Step workflow |
 | `real` | Uses the real engine runtime if available locally |
 
 ## Observability
 
-- `GET /health` — API status, engine state, counters
-- `GET /api/diagnostics` — DB pool info, engine readiness, storage, recent jobs
+- `GET /health`: API status and release metadata
+- `GET /api/diagnostics`: database, engine, jobs, runtime, storage, logs
+- `release` block: `environment`, `version`, `sha`
+- `runtime` block: `started_at_utc`, `uptime_seconds`
 - Response headers: `X-Request-ID`, `X-Process-Time-Ms`
 - Log files: `logs/app.log`, `logs/error.log`
+
+## Operations
+
+- Runbook: [`docs/RUNBOOK.md`](docs/RUNBOOK.md)
+- Release checklist: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
+- Deployment smoke check:
+
+```bash
+python scripts/smoke_check.py http://127.0.0.1:8000
+```
 
 ## Tests
 
 ```bash
-# Unit + Integration tests (requires PostgreSQL)
+# Unit + integration tests (requires PostgreSQL)
 .\.venv\Scripts\python -m pytest backend/tests -q
 
 # Browser-level E2E smoke tests
 cd e2e && npm install && npx playwright install chromium && npm test
 ```
 
-The test suite starts the backend in `mock` mode on port `8011` and covers:
-app startup, status page, mock track creation, result display, project save, export, project list.
-
 ## Known Limitations
 
-- `ace` / `real` modes require a local ComfyUI instance with specific workflows installed
-- The E2E suite runs against `mock` mode only — ComfyUI integration is tested manually
+- `ace` and `real` modes require a local ComfyUI installation
+- E2E suite runs against `mock` mode only

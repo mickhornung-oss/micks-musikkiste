@@ -156,6 +156,7 @@ class SystemStatus(BaseModel):
     data_dir_ok: bool = True
     total_projects: int = 0
     total_outputs: int = 0
+    release: dict = Field(default_factory=dict)
 
 
 class DiagnosticsResponse(BaseModel):
@@ -169,6 +170,7 @@ class DiagnosticsResponse(BaseModel):
     jobs: dict = Field(default_factory=dict)
     worker: dict = Field(default_factory=dict)
     runtime: dict = Field(default_factory=dict)
+    release: dict = Field(default_factory=dict)
     storage: dict = Field(default_factory=dict)
     logs: dict = Field(default_factory=dict)
 

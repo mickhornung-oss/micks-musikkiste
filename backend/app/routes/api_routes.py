@@ -47,6 +47,14 @@ def _count_output_files() -> int:
     )
 
 
+def _release_info() -> dict:
+    return {
+        "environment": settings.APP_ENV,
+        "version": settings.RELEASE_VERSION,
+        "sha": settings.RELEASE_SHA,
+    }
+
+
 @router.get("/health")
 async def health_check(
     project_service: ProjectService = Depends(get_project_service),
@@ -60,6 +68,7 @@ async def health_check(
         data_dir_ok=True,
         total_projects=await project_service.count_projects(),
         total_outputs=_count_output_files(),
+        release=_release_info(),
     )
 
 
@@ -89,6 +98,7 @@ async def get_diagnostics(
         jobs=job_counts,
         worker=worker.get_status() if worker else {"running": False, "worker_id": None},
         runtime=runtime_stats.snapshot(),
+        release=_release_info(),
         storage={
             "outputs_dir": str(settings.OUTPUTS_DIR),
             "outputs_total": _count_output_files(),

@@ -1,11 +1,17 @@
 """Lightweight local observability helpers."""
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from threading import Lock
+from time import perf_counter
 
 
 @dataclass
 class RuntimeStats:
+    started_at_utc: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    _started_monotonic: float = field(default_factory=perf_counter, repr=False)
     requests_total: int = 0
     requests_failed: int = 0
     jobs_started: int = 0
@@ -36,7 +42,10 @@ class RuntimeStats:
 
     def snapshot(self) -> dict:
         with self._lock:
+            uptime_seconds = round(perf_counter() - self._started_monotonic, 2)
             return {
+                "started_at_utc": self.started_at_utc,
+                "uptime_seconds": uptime_seconds,
                 "requests_total": self.requests_total,
                 "requests_failed": self.requests_failed,
                 "jobs_started": self.jobs_started,

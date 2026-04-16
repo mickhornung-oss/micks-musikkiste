@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     API_TITLE: str = "Micks Musikkiste API"
     API_VERSION: str = "0.2.0"
     API_DESCRIPTION: str = "Lokales AI-Musikstudio Backend"
+    APP_ENV: str = "local"
+    RELEASE_VERSION: str = "0.2.0"
+    RELEASE_SHA: str = "local"
 
     # Server
     SERVER_HOST: str = "127.0.0.1"
