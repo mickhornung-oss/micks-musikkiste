@@ -106,12 +106,23 @@ async def get_version() -> dict:
 
 
 @router.get("/api/diagnostics")
-async def get_diagnostics(
-    session: AsyncSession = Depends(get_db_session),
-) -> DiagnosticsResponse:
-    job_repo = JobRepository(session)
-    database = await check_db_connection()
-    job_counts = await job_repo.get_status_counts()
+async def get_diagnostics() -> DiagnosticsResponse:
+    database = {"ok": False, "error": "unknown"}
+    job_counts = {}
+    try:
+        database = await check_db_connection()
+    except Exception as exc:
+        database = {"ok": False, "error": str(exc)}
+
+    if database.get("ok"):
+        try:
+            async with async_session_factory() as session:
+                job_repo = JobRepository(session)
+                job_counts = await job_repo.get_status_counts()
+        except Exception as exc:
+            logger.warning("diagnostics_job_counts_failed", error=str(exc))
+            job_counts = {"error": str(exc)}
+
     worker = get_worker()
     return DiagnosticsResponse(
         status="ok" if database["ok"] else "degraded",
