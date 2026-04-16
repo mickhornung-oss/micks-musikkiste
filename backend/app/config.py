@@ -105,6 +105,21 @@ class Settings(BaseSettings):
         normalized = str(value).strip().lower()
         return normalized in {"1", "true", "yes", "on", "debug", "dev"}
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: Any) -> str:
+        """Support Railway-style postgres URLs with async SQLAlchemy driver."""
+        if value is None:
+            return "postgresql+asyncpg://postgres@localhost:5432/postgres"
+        raw = str(value).strip()
+        if raw.startswith("postgres://"):
+            return "postgresql+asyncpg://" + raw[len("postgres://") :]
+        if raw.startswith("postgresql://") and not raw.startswith(
+            "postgresql+asyncpg://"
+        ):
+            return "postgresql+asyncpg://" + raw[len("postgresql://") :]
+        return raw
+
 
 settings = Settings()
 
