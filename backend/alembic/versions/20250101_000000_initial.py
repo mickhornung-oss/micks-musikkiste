@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "001"
@@ -30,7 +29,7 @@ def upgrade() -> None:
         sa.Column("progress", sa.Integer(), default=0),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("result_file", sa.String(500), nullable=True),
-        sa.Column("metadata", postgresql.JSON(), default=dict),
+        sa.Column("metadata", sa.JSON(), default=dict),
         sa.Column("preset_used", sa.String(100), nullable=True),
         sa.Column("engine", sa.String(50), nullable=False, default="mock"),
         sa.Column(
@@ -53,28 +52,19 @@ def upgrade() -> None:
         sa.Column("output_file", sa.String(500), nullable=True),
         sa.Column("preset_used", sa.String(100), nullable=True),
         sa.Column("lyrics", sa.Text(), nullable=True),
-        sa.Column("negative_prompts", postgresql.JSON(), default=list),
-        sa.Column("parameters", postgresql.JSON(), default=dict),
-        sa.Column("metadata", postgresql.JSON(), default=dict),
+        sa.Column("negative_prompts", sa.JSON(), default=list),
+        sa.Column("parameters", sa.JSON(), default=dict),
+        sa.Column("metadata", sa.JSON(), default=dict),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("exports", postgresql.JSON(), default=list),
+        sa.Column("exports", sa.JSON(), default=list),
         sa.Column("last_export_at", sa.DateTime(), nullable=True),
-        sa.Column("last_job_id", sa.String(36), nullable=True),
+        sa.Column("last_job_id", sa.String(36), sa.ForeignKey("jobs.id"), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
         ),
         sa.Column(
             "updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
         ),
-    )
-
-    # Create foreign key constraint
-    op.create_foreign_key(
-        "fk_projects_last_job",
-        "projects",
-        "jobs",
-        ["last_job_id"],
-        ["id"],
     )
 
     # Create indexes
@@ -92,9 +82,6 @@ def downgrade() -> None:
     op.drop_index("ix_projects_type", table_name="projects")
     op.drop_index("ix_projects_genre", table_name="projects")
     op.drop_index("ix_projects_created_at", table_name="projects")
-
-    # Drop foreign key constraint
-    op.drop_constraint("fk_projects_last_job", "projects", type_="foreignkey")
 
     # Drop tables
     op.drop_table("projects")

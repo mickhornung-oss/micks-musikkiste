@@ -60,6 +60,9 @@ docker-compose.override.yml
 backend/data/musikkiste.db
 backend/data/musikkiste.db-shm
 backend/data/musikkiste.db-wal
+data/*.db
+data/*.db-shm
+data/*.db-wal
 
 # Local model/runtime assets (not for git)
 vendor/ComfyUI/models/checkpoints/
