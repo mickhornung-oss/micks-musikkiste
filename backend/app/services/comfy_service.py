@@ -147,8 +147,18 @@ def _ensure_dir_link(link_path: Path, target_path: Path) -> dict[str, Any]:
 
 
 def _ensure_ace_assets() -> dict[str, Any] | None:
+    """Check ACE-Step assets for the configured workflow type.
+
+    For AIO-style checkpoints (ace_step15_turbo.json / CheckpointLoaderSimple)
+    there are no custom nodes or legacy model dirs to symlink — returns None.
+    For legacy custom-node workflows the symlinks are still attempted.
+    """
     workflow_path = _extract_option(settings.ACE_STEP_COMMAND, "--workflow")
     if not workflow_path:
+        return None
+
+    # AIO workflows use native ComfyUI nodes — no custom-node assets needed.
+    if "ace_step15" in workflow_path or "aio" in workflow_path.lower():
         return None
 
     workflow = Path(workflow_path).expanduser()

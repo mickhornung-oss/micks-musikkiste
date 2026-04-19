@@ -8,6 +8,7 @@ from app.http import RequestContextMiddleware, install_error_handlers
 from app.logging_config import logger
 from app.repositories.job_repository import JobRepository
 from app.routes import router
+from app.routes.v2_routes import v2_router
 from app.services.comfy_service import ensure_comfy_available
 from app.services.queue_worker import start_worker, stop_worker
 from fastapi import FastAPI
@@ -91,6 +92,7 @@ app.add_middleware(RequestContextMiddleware)
 install_error_handlers(app)
 
 app.include_router(router)
+app.include_router(v2_router)
 
 frontend_path = settings.PROJECT_ROOT / "frontend"
 if frontend_path.exists():
@@ -118,7 +120,15 @@ async def api_root():
     """Expose a minimal API index."""
     return {
         "version": settings.API_VERSION,
-        "endpoints": {
+        "v2_endpoints": {
+            "beat_generate": "/api/v2/beat/generate",
+            "track_generate": "/api/v2/track/generate",
+            "engine_status": "/api/v2/engine/status",
+            "genres": "/api/v2/genres",
+            "config": "/api/v2/config",
+            "job_status": "/api/v2/jobs/{job_id}",
+        },
+        "v1_endpoints": {
             "health": "/health",
             "track": "/api/track/generate",
             "beat": "/api/beat/generate",

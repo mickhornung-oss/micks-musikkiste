@@ -16,6 +16,25 @@ def utc_now_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+def _result_file_to_url(result_file: Optional[str]) -> Optional[str]:
+    """Wandelt einen absoluten Dateipfad in eine relative HTTP-URL um.
+
+    Gibt /outputs/<filename> oder /exports/<filename> zurück,
+    je nachdem in welchem Verzeichnis die Datei liegt.
+    """
+    if not result_file:
+        return None
+    from pathlib import Path as _Path
+    p = _Path(result_file)
+    name = p.name
+    # Pfad-Erkennung anhand des übergeordneten Verzeichnisses
+    parent = p.parent.name
+    if parent == "exports":
+        return f"/exports/{name}"
+    # Standardfall: outputs
+    return f"/outputs/{name}"
+
+
 class JobStatus(str, enum.Enum):
     PENDING = "pending"
     QUEUED = "queued"
@@ -72,6 +91,7 @@ class Job(Base):
             "progress": self.progress,
             "error": self.error,
             "result_file": self.result_file,
+            "output_url": _result_file_to_url(self.result_file),
             "metadata": self.metadata_json,
             "preset_used": self.preset_used,
             "engine": self.engine,

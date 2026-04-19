@@ -26,12 +26,15 @@ Thumbs.db
 
 # Local Data (keep structure, ignore content)
 data/outputs/*.mp3
+data/outputs/*.wav
 data/exports/*.mp3
+data/exports/*.wav
 data/projects/*.json
 
 # Logs
 *.log
 logs/
+backend_startup*.log
 
 # Environment
 .env.local
@@ -52,3 +55,17 @@ coverage.xml
 
 # Docker
 docker-compose.override.yml
+
+# SQLite local database
+backend/data/musikkiste.db
+backend/data/musikkiste.db-shm
+backend/data/musikkiste.db-wal
+
+# Local model/runtime assets (not for git)
+vendor/ComfyUI/models/checkpoints/
+vendor/ComfyUI/models/TTS/
+
+# Local frontend backups/temp
+*.bak
+*.tmp
+

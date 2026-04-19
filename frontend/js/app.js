@@ -1,1097 +1,817 @@
-﻿const API_BASE = window.location.origin;
+﻿// Micks Musikkiste V2 — Frontend-Logik
+// Keine V1-Preset-Logik, kein Mode-Switch-Hack.
+// Genre ist ein Formularfeld, nicht Navigationspunkt.
 
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Konstanten
+// ---------------------------------------------------------------------------
+const API_BASE = window.location.origin;
+const POLL_INTERVAL_MS = 3000;
+
+// ---------------------------------------------------------------------------
+// Zustand
+// ---------------------------------------------------------------------------
 const state = {
-    currentJob: null,
-    currentJobId: null,
-    currentProjectId: null,
-    trackPresets: [],
-    beatPresets: [],
+    genres: [],           // [{id, name, substyles:[], bpm_default, bpm_range}]
+    profiles: [],         // [{id, name, ...}]
+    activeEngine: null,   // string
+    activeProfile: null,  // string
+    activeJob: null,      // job-Objekt nach Generierung
+    lastRequest: null,    // Beat- oder Track-Request zum Neuerstellen
+    lastType: null,       // "beat" | "track"
+    pollTimer: null,
     allProjects: [],
     filteredProjects: [],
-    selectedMode: null,
+    dialogResolve: null,
 };
 
-const MODE_CONFIGS = {
-    techno_beat: {
-        page: "beat",
-        navLabel: "Techno Beat",
-        toast: "Techno Beat ist bereit.",
-        beatPreset: "beat_techno_club",
-        beatTitle: "Techno Beat",
-        beatMood: "groovy",
-        beatDuration: "45",
-        beatPageTitle: "Techno Beat",
-        beatPageIntro: "Druckvoller Club-Groove mit klarem Kick-Fokus und ohne Vocal-Chaos.",
-    },
-    hiphop_beat: {
-        page: "beat",
-        navLabel: "Hip-Hop Beat",
-        toast: "Hip-Hop Beat ist bereit.",
-        beatPreset: "beat_hiphop_trap",
-        beatTitle: "Hip-Hop Beat",
-        beatMood: "laid back",
-        beatDuration: "45",
-        beatPageTitle: "Hip-Hop Beat",
-        beatPageIntro: "Head-nod Groove mit 808-Fokus, klarer Rhythmik und sofort brauchbarem Hip-Hop-Start.",
-    },
-    full_track: {
-        page: "track",
-        navLabel: "Voller Track",
-        toast: "Voller Track ist bereit.",
-        trackPreset: "techno_melodic",
-        trackTitle: "Full Track",
-        trackMood: "energetic",
-        trackDuration: "60",
-    },
-};
-
-const dialogState = {
-    resolve: null,
-};
-
+// ---------------------------------------------------------------------------
+// Hilfsfunktionen
+// ---------------------------------------------------------------------------
 const byId = (id) => document.getElementById(id);
 
-document.addEventListener("DOMContentLoaded", async () => {
-    setupNavigation();
-    setupEventListeners();
-    setupTextInputDialog();
-    setupSliderUpdates();
-    resetResultUI();
-    await loadPresets();
-    await loadProjects();
-    await loadSystemStatus();
-});
-
-function formatDateTime(value) {
-    if (!value) return "-";
-    const date = new Date(value);
-    return `${date.toLocaleDateString("de-DE")} ${date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
-}
-
-function formatDuration(seconds) {
-    if (!Number.isFinite(seconds)) return "-";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${String(secs).padStart(2, "0")} min`;
-}
-
-function escapeHtml(text) {
-    return String(text || "")
+function esc(text) {
+    return String(text ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(/"/g, "&quot;");
 }
 
-function buildAbsoluteUrl(path) {
-    if (!path) return "";
-    return path.startsWith("http") ? path : `${API_BASE}${path}`;
+function fmtDuration(seconds) {
+    if (!Number.isFinite(Number(seconds))) return "–";
+    const s = Number(seconds);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return m > 0 ? `${m}:${String(r).padStart(2, "0")} min` : `${r} Sek.`;
 }
 
-function triggerDownload(url, filename) {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || "export";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+function fmtDate(value) {
+    if (!value) return "–";
+    const d = new Date(value);
+    return `${d.toLocaleDateString("de-DE")} ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function buildSlug(value, fallback = "micks-export") {
-    const slug = String(value || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9\s_-]/g, "")
-        .replace(/\s+/g, "_");
-    return slug || fallback;
+function showToast(msg, isError = false) {
+    const t = document.createElement("div");
+    t.className = `toast ${isError ? "toast-error" : "toast-success"}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), isError ? 5000 : 3000);
 }
 
-function setupTextInputDialog() {
-    const dialog = byId("textInputDialog");
-    if (!dialog) return;
-
-    const form = byId("textInputDialogForm");
-    const input = byId("textInputField");
-    const cancelButton = byId("textInputCancel");
-
-    const closeDialog = (value) => {
-        const resolve = dialogState.resolve;
-        dialogState.resolve = null;
-        if (dialog.open) {
-            dialog.close();
+// ---------------------------------------------------------------------------
+// API-Modul
+// ---------------------------------------------------------------------------
+const api = {
+    async _req(path, opts = {}) {
+        const resp = await fetch(`${API_BASE}${path}`, {
+            headers: { "Content-Type": "application/json", ...opts.headers },
+            ...opts,
+        });
+        const isJson = resp.headers.get("content-type")?.includes("application/json");
+        const data = isJson ? await resp.json() : null;
+        if (!resp.ok) {
+            const msg = data?.error?.message || data?.detail || data?.message || `HTTP ${resp.status}`;
+            throw new Error(msg);
         }
-        resolve?.(value);
-    };
+        return data;
+    },
 
-    form.addEventListener("submit", (event) => {
-        event.preventDefault();
-        closeDialog(input.value.trim() || null);
+    genres: () => api._req("/api/v2/genres"),
+    engineStatus: () => api._req("/api/v2/engine/status"),
+    config: () => api._req("/api/v2/config"),
+    profiles: () => api._req("/api/v2/profiles"),
+    job: (id) => api._req(`/api/v2/jobs/${id}`),
+    beat: (body) => api._req("/api/v2/beat/generate", { method: "POST", body: JSON.stringify(body) }),
+    track: (body) => api._req("/api/v2/track/generate", { method: "POST", body: JSON.stringify(body) }),
+    projects: () => api._req("/api/v2/projects"),
+    saveProject: (body) => api._req("/api/v2/projects", { method: "POST", body: JSON.stringify(body) }),
+    switchEngine: (engine) => api._req("/api/engine/mode", { method: "POST", body: JSON.stringify({ mode: engine }) }),
+    switchProfile: (id) => api._req("/api/engine/profile", { method: "POST", body: JSON.stringify({ profile_id: id }) }),
+};
+
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+function navigateTo(page) {
+    document.querySelectorAll(".page").forEach((s) => s.classList.remove("active"));
+    const target = byId(`page-${page}`);
+    if (target) target.classList.add("active");
+
+    document.querySelectorAll(".nav-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.page === page);
     });
 
-    cancelButton.addEventListener("click", () => closeDialog(null));
-
-    dialog.addEventListener("cancel", (event) => {
-        event.preventDefault();
-        closeDialog(null);
-    });
-
-    dialog.addEventListener("click", (event) => {
-        const rect = dialog.getBoundingClientRect();
-        const clickedBackdrop =
-            event.clientX < rect.left ||
-            event.clientX > rect.right ||
-            event.clientY < rect.top ||
-            event.clientY > rect.bottom;
-        if (clickedBackdrop) {
-            closeDialog(null);
-        }
-    });
-}
-
-async function promptForText({ title, description, label, defaultValue = "", confirmLabel = "Speichern" }) {
-    const dialog = byId("textInputDialog");
-    const input = byId("textInputField");
-    if (!dialog || !input) {
-        return window.prompt(title, defaultValue);
-    }
-
-    if (dialogState.resolve) {
-        dialogState.resolve(null);
-        dialogState.resolve = null;
-    }
-
-    byId("textInputDialogTitle").textContent = title;
-    byId("textInputDialogDescription").textContent = description;
-    byId("textInputDialogLabel").textContent = label;
-    byId("textInputConfirm").textContent = confirmLabel;
-    input.value = defaultValue;
-
-    return new Promise((resolve) => {
-        dialogState.resolve = resolve;
-        dialog.showModal();
-        window.requestAnimationFrame(() => {
-            input.focus();
-            input.select();
-        });
-    });
-}
-
-function showToast(message, type = "success") {
-    const toast = document.createElement("div");
-    toast.className = `toast ${type === "error" ? "toast-error" : "toast-success"}`;
-    toast.textContent = type === "error" ? `Warnung: ${message}` : message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), type === "error" ? 4500 : 3000);
-}
-
-function showMessage(message) {
-    showToast(message, "success");
-}
-
-function showError(message) {
-    showToast(message, "error");
-    byId("progress").style.display = "none";
-    byId("errorMessage").style.display = "block";
-    byId("errorText").textContent = message;
-}
-
-async function apiRequest(path, options = {}) {
-    const response = await fetch(`${API_BASE}${path}`, options);
-    const isJson = response.headers.get("content-type")?.includes("application/json");
-    const data = isJson ? await response.json() : null;
-    if (!response.ok) {
-        throw new Error(data?.error?.message || data?.detail || data?.message || `Request fehlgeschlagen: ${response.status}`);
-    }
-    return data;
-}
-
-function resetResultState() {
-    state.currentJob = null;
-    state.currentJobId = null;
-    state.currentProjectId = null;
-}
-
-function clearAudioPlayer() {
-    const player = byId("audioPlayer");
-    player.pause();
-    player.removeAttribute("src");
-    player.load();
-}
-
-function toggleResultActions(disabled) {
-    ["playBtn", "stopBtn", "exportBtn", "saveBtn", "varyBtn", "regenerateBtn"].forEach((id) => {
-        const button = byId(id);
-        if (button) button.disabled = disabled;
-    });
-}
-
-function setResultPlaceholders() {
-    byId("resultTitle").textContent = "Warte auf Generierung...";
-    byId("resultType").textContent = "Track";
-    byId("resultGenre").textContent = "Genre";
-    byId("resultPreset").style.display = "none";
-    byId("resultCreated").textContent = "Eben erstellt";
-    byId("resultDetailsType").textContent = "Track";
-    byId("resultDetailsGenre").textContent = "-";
-    byId("resultDetailsDuration").textContent = "-";
-    byId("resultDetailsMood").textContent = "-";
-    byId("resultDetailsPreset").textContent = "Keines";
-    byId("resultDetailsTempo").textContent = "-";
-    toggleResultActions(true);
-}
-
-function updateProgress(value) {
-    byId("progressFill").style.width = `${value}%`;
-    byId("progressText").textContent = `${value}%`;
-}
-
-function updateResultStatus(status, text) {
-    const banner = byId("resultStatus");
-    banner.style.display = "block";
-    banner.className = `result-status-banner status-${status}`;
-    byId("resultStatusMsg").textContent = text;
-    if (status === "completed") {
-        setTimeout(() => {
-            banner.style.display = "none";
-        }, 1500);
-    }
-}
-
-function resetResultUI() {
-    byId("progress").style.display = "none";
-    byId("errorMessage").style.display = "none";
-    updateProgress(0);
-    clearAudioPlayer();
-    setResultPlaceholders();
-    updateResultStatus("idle", "Bereit für deinen nächsten Track oder Beat.");
-}
-
-function showProgress() {
-    byId("progress").style.display = "block";
-    byId("errorMessage").style.display = "none";
-    updateProgress(0);
-    clearAudioPlayer();
-    setResultPlaceholders();
-}
-
-function getPresetLabel(presetId, type) {
-    if (!presetId) return null;
-    const presets = type === "beat" ? state.beatPresets : state.trackPresets;
-    return presets.find((preset) => preset.id === presetId)?.name || presetId;
-}
-
-function setupNavigation() {
-    document.querySelectorAll(".nav-btn").forEach((button) => {
-        button.addEventListener("click", () => {
-            if (button.dataset.mode) {
-                activateMode(button.dataset.mode);
-                return;
-            }
-            navigateToPage(button.dataset.page);
-        });
-    });
-    document.querySelectorAll(".action-card").forEach((card) => {
-        card.addEventListener("click", () => {
-            if (card.dataset.mode) {
-                activateMode(card.dataset.mode);
-                return;
-            }
-            navigateToPage(card.dataset.page);
-        });
-    });
-}
-
-function navigateToPage(pageName) {
-    document.querySelectorAll(".page").forEach((page) => page.classList.remove("active"));
-    byId(`page-${pageName}`)?.classList.add("active");
-    document.querySelectorAll(".nav-btn").forEach((button) => {
-        button.classList.toggle("active", button.dataset.page === pageName && !button.dataset.mode);
-    });
-    if (pageName === "beat" || pageName === "track") {
-        syncModeChrome();
-    }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function setActiveModeUI(mode) {
-    document.querySelectorAll(".nav-btn[data-mode]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.mode === mode);
-    });
-    document.querySelectorAll(".mode-chip[data-mode]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.mode === mode);
-    });
-}
-
-function syncModeChrome() {
-    if (state.selectedMode === "techno_beat" || state.selectedMode === "hiphop_beat") {
-        const config = MODE_CONFIGS[state.selectedMode];
-        byId("beatPageTitle").textContent = config.beatPageTitle;
-        byId("beatPageIntro").textContent = config.beatPageIntro;
-        setActiveModeUI(state.selectedMode);
-        return;
-    }
-    if (state.selectedMode === "full_track") {
-        setActiveModeUI("full_track");
-    }
-}
-
-function activateMode(mode, { silent = false, preservePage = false, markActive = true } = {}) {
-    const config = MODE_CONFIGS[mode];
-    if (!config) return;
-    const previousMode = state.selectedMode;
-    state.selectedMode = mode;
-
-    if (mode === "techno_beat" || mode === "hiphop_beat") {
-        byId("beatPageTitle").textContent = config.beatPageTitle;
-        byId("beatPageIntro").textContent = config.beatPageIntro;
-        byId("beatTitle").value = byId("beatTitle").value && previousMode === mode ? byId("beatTitle").value : config.beatTitle;
-        byId("beatPreset").value = config.beatPreset;
-        applyBeatPreset(config.beatPreset);
-        byId("beatMood").value = config.beatMood;
-        byId("beatDuration").value = config.beatDuration;
-    }
-
-    if (mode === "full_track") {
-        byId("trackTitle").value = byId("trackTitle").value && previousMode === mode ? byId("trackTitle").value : config.trackTitle;
-        byId("trackPreset").value = config.trackPreset;
-        applyTrackPreset(config.trackPreset);
-        byId("trackMood").value = config.trackMood;
-        byId("trackDuration").value = config.trackDuration;
-    }
-
-    if (!preservePage) {
-        navigateToPage(config.page);
-    } else if (markActive) {
-        setActiveModeUI(mode);
-    }
-
-    if (markActive) {
-        setActiveModeUI(mode);
-    }
-    if (!silent) showMessage(config.toast);
-}
-
-function setupEventListeners() {
-    byId("trackForm").addEventListener("submit", handleTrackGeneration);
-    byId("beatForm").addEventListener("submit", handleBeatGeneration);
-    byId("trackForm").addEventListener("reset", () => window.setTimeout(() => activateMode("full_track"), 0));
-    byId("beatForm").addEventListener("reset", () => window.setTimeout(() => activateMode(state.selectedMode === "hiphop_beat" ? "hiphop_beat" : "techno_beat"), 0));
-    byId("playBtn").addEventListener("click", () => byId("audioPlayer").play());
-    byId("stopBtn").addEventListener("click", () => byId("audioPlayer").pause());
-    byId("varyBtn").addEventListener("click", handleVariation);
-    byId("regenerateBtn").addEventListener("click", handleRegenerate);
-    byId("saveBtn").addEventListener("click", handleSaveProject);
-    byId("exportBtn").addEventListener("click", handleExport);
-    byId("deleteBtn").addEventListener("click", handleDeleteResult);
-    byId("backBtn").addEventListener("click", handleBackToEditor);
-    byId("trackPreset").addEventListener("change", (event) => applyTrackPreset(event.target.value));
-    byId("beatPreset").addEventListener("change", (event) => applyBeatPreset(event.target.value));
-    document.querySelectorAll(".mode-chip[data-mode]").forEach((button) => {
-        button.addEventListener("click", () => activateMode(button.dataset.mode));
+function setupNavigation() {
+    document.querySelectorAll(".nav-btn[data-page]").forEach((btn) => {
+        btn.addEventListener("click", () => navigateTo(btn.dataset.page));
     });
 
-    ["projectSearch", "genreFilter", "presetFilter", "sortFilter"].forEach((id) => {
-        byId(id)?.addEventListener("input", applyFilters);
-        byId(id)?.addEventListener("change", applyFilters);
+    // Start-Cards auf dem Dashboard
+    document.querySelectorAll(".start-card[data-page]").forEach((card) => {
+        card.addEventListener("click", () => navigateTo(card.dataset.page));
     });
 
-    document.querySelectorAll(".filter-btn").forEach((button) => {
-        button.addEventListener("click", () => {
-            document.querySelectorAll(".filter-btn").forEach((candidate) => candidate.classList.remove("active"));
-            button.classList.add("active");
-            applyFilters();
-        });
-    });
-
-}
-
-function setupSliderUpdates() {
-    [
-        ["trackEnergy", "energyValue"],
-        ["trackTempo", "tempoValue"],
-        ["trackCreativity", "creativityValue"],
-        ["trackCatchiness", "catchinessValue"],
-        ["trackVocal", "vocalValue"],
-        ["beatTempo", "beatTempoValue"],
-        ["beatHeaviness", "heavinessValue"],
-        ["beatMelody", "melodyValue"],
-        ["beatEnergy", "beatEnergyValue"],
-    ].forEach(([inputId, labelId]) => {
-        const input = byId(inputId);
-        const label = byId(labelId);
-        if (!input || !label) return;
-        label.textContent = input.value;
-        input.addEventListener("input", () => {
-            label.textContent = input.value;
-        });
+    // Dashboard-Tiles
+    document.querySelectorAll(".dash-tile[data-page]").forEach((tile) => {
+        tile.addEventListener("click", () => navigateTo(tile.dataset.page));
     });
 }
 
-async function loadPresets() {
-    const [trackData, beatData] = await Promise.all([
-        apiRequest("/api/presets/track"),
-        apiRequest("/api/presets/beat"),
-    ]);
-    state.trackPresets = trackData.data?.presets || [];
-    state.beatPresets = beatData.data?.presets || [];
-    populatePresetFilter();
-    activateMode("techno_beat", { silent: true, preservePage: true, markActive: false });
-    activateMode("full_track", { silent: true, preservePage: true, markActive: false });
-    state.selectedMode = null;
-}
-
-function populatePresetFilter() {
-    const select = byId("presetFilter");
-    const presets = [...state.trackPresets, ...state.beatPresets];
-    const uniqueIds = [...new Map(presets.map((preset) => [preset.id, preset.name])).entries()];
-    select.innerHTML = `
-        <option value="">Alle Presets</option>
-        <option value="with">Nur mit Preset</option>
-        <option value="without">Ohne Preset</option>
-    `;
-    uniqueIds.forEach(([id, name]) => {
-        const option = document.createElement("option");
-        option.value = id;
-        option.textContent = name;
-        select.appendChild(option);
-    });
-}
-
-function pickClosestOptionValue(selectId, desiredValue) {
-    const select = byId(selectId);
-    const numericDesired = Number.parseInt(desiredValue, 10);
-    const options = [...select.options]
-        .map((option) => Number.parseInt(option.value, 10))
-        .filter((value) => Number.isFinite(value));
-
-    if (!options.length || !Number.isFinite(numericDesired)) {
-        return select.value;
-    }
-
-    return String(options.reduce((closest, current) => {
-        return Math.abs(current - numericDesired) < Math.abs(closest - numericDesired) ? current : closest;
-    }, options[0]));
-}
-
-function applyTrackPreset(presetId) {
-    const preset = state.trackPresets.find((item) => item.id === presetId);
-    byId("presetHint").style.display = preset ? "block" : "none";
-    if (!preset?.values) return;
-    if (preset.category === "techno") byId("trackGenre").value = "Techno";
-    if (preset.category === "hiphop") byId("trackGenre").value = "Hip-Hop";
-    byId("trackEnergy").value = preset.values.energy;
-    byId("trackTempo").value = preset.values.tempo;
-    byId("trackCreativity").value = preset.values.creativity;
-    byId("trackCatchiness").value = preset.values.catchiness;
-    byId("trackVocal").value = preset.values.vocal_strength || 5;
-    byId("trackMood").value = preset.default_mood || byId("trackMood").value;
-    byId("trackLanguage").value = preset.recommended_language || byId("trackLanguage").value;
-    byId("trackDuration").value = pickClosestOptionValue("trackDuration", preset.recommended_duration || byId("trackDuration").value);
-    byId("trackNegative").value = (preset.negative_prompts || []).join(", ");
-    byId("presetHint").textContent = preset.description || "Preset-Werte werden direkt für den Erstlauf gesetzt.";
-    setupSliderUpdates();
-}
-
-function applyBeatPreset(presetId) {
-    const preset = state.beatPresets.find((item) => item.id === presetId);
-    byId("beatPresetHint").style.display = preset ? "block" : "none";
-    if (!preset?.values) return;
-    if (preset.category === "techno") byId("beatGenre").value = "Techno";
-    if (preset.category === "hiphop") byId("beatGenre").value = "Hip-Hop";
-    byId("beatTempo").value = preset.values.tempo;
-    byId("beatHeaviness").value = preset.values.heaviness;
-    byId("beatMelody").value = preset.values.melody_amount;
-    byId("beatEnergy").value = preset.values.energy;
-    byId("beatMood").value = preset.default_mood || byId("beatMood").value;
-    byId("beatDuration").value = pickClosestOptionValue("beatDuration", preset.recommended_duration || byId("beatDuration").value);
-    byId("beatPresetHint").textContent = preset.description || "Preset-Werte werden direkt für Groove und Arrangement gesetzt.";
-    setupSliderUpdates();
-}
-
-function buildTrackRequest() {
-    return {
-        title: byId("trackTitle").value,
-        genre: byId("trackGenre").value,
-        mood: byId("trackMood").value,
-        language: byId("trackLanguage").value,
-        duration: Number.parseInt(byId("trackDuration").value, 10),
-        lyrics: byId("trackLyrics").value || null,
-        negative_prompts: byId("trackNegative").value
-            ? byId("trackNegative").value.split(",").map((item) => item.trim()).filter(Boolean)
-            : [],
-        energy: Number.parseInt(byId("trackEnergy").value, 10),
-        tempo: Number.parseInt(byId("trackTempo").value, 10),
-        creativity: Number.parseInt(byId("trackCreativity").value, 10),
-        catchiness: Number.parseInt(byId("trackCatchiness").value, 10),
-        vocal_strength: Number.parseInt(byId("trackVocal").value, 10),
-        preset_id: byId("trackPreset").value || null,
-    };
-}
-
-function buildBeatRequest() {
-    return {
-        title: byId("beatTitle").value,
-        genre: byId("beatGenre").value,
-        mood: byId("beatMood").value,
-        duration: Number.parseInt(byId("beatDuration").value, 10),
-        tempo: Number.parseInt(byId("beatTempo").value, 10),
-        heaviness: Number.parseInt(byId("beatHeaviness").value, 10),
-        melody_amount: Number.parseInt(byId("beatMelody").value, 10),
-        energy: Number.parseInt(byId("beatEnergy").value, 10),
-        preset_id: byId("beatPreset").value || null,
-    };
-}
-
-async function handleTrackGeneration(event) {
-    event.preventDefault();
-    await submitGeneration("/api/track/generate", buildTrackRequest(), "track");
-}
-
-async function handleBeatGeneration(event) {
-    event.preventDefault();
-    await submitGeneration("/api/beat/generate", buildBeatRequest(), "beat");
-}
-
-async function submitGeneration(path, payload, type) {
+// ---------------------------------------------------------------------------
+// Genres + Substyle
+// ---------------------------------------------------------------------------
+async function loadGenres() {
     try {
-        resetResultState();
-        navigateToPage("result");
-        showProgress();
-        updateResultStatus("queued", `${type === "track" ? "Track" : "Beat"} steht in der Warteschlange...`);
-        const data = await apiRequest(path, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-        state.currentJobId = data.data.job_id;
-        await monitorJob(state.currentJobId, type);
-    } catch (error) {
-        showError(error.message);
+        const resp = await api.genres();
+        const genreList = resp?.data ?? resp ?? [];
+        state.genres = Array.isArray(genreList) ? genreList : [];
+    } catch (e) {
+        console.warn("Genre-Load fehlgeschlagen:", e);
+        state.genres = [];
     }
+    populateGenreDropdowns();
 }
 
-async function monitorJob(jobId, type) {
-    return new Promise((resolve) => {
-        const interval = setInterval(async () => {
-            try {
-                const data = await apiRequest(`/api/jobs/${jobId}`);
-                const job = data.data;
-                updateProgress(job.progress || 0);
-
-                if (job.status === "queued") {
-                    updateResultStatus("queued", "In der Warteschlange...");
-                    return;
-                }
-                if (job.status === "running" || job.status === "generating") {
-                    updateResultStatus("running", `Wird generiert (${job.progress || 0}%)`);
-                    return;
-                }
-
-                clearInterval(interval);
-                if (job.status === "completed") {
-                    state.currentJob = job;
-                    state.currentJobId = job.id;
-                    state.currentProjectId = null;
-                    updateResultStatus("completed", "Fertig! Ergebnis bereit.");
-                    showResult(job, type);
-                    await loadProjects();
-                    showMessage("Fertig generiert");
-                } else {
-                    showFailedResult(job);
-                }
-                resolve();
-            } catch (error) {
-                clearInterval(interval);
-                updateResultStatus("failed", "Job-Überwachung fehlgeschlagen");
-                showError(error.message);
-                resolve();
-            }
-        }, 600);
+function populateGenreDropdowns() {
+    ["beatGenre", "trackGenre", "genreFilter"].forEach((id) => {
+        const sel = byId(id);
+        if (!sel) return;
+        const isFilter = id === "genreFilter";
+        // Erste Option behalten
+        const defaultOption = sel.options[0];
+        sel.innerHTML = "";
+        sel.appendChild(defaultOption);
+        state.genres.forEach((g) => {
+            const opt = document.createElement("option");
+            opt.value = g.id;
+            opt.textContent = g.name;
+            sel.appendChild(opt);
+        });
     });
 }
 
-function buildAudioUrl(entity) {
-    if (!entity) return "";
-    if (entity.audio_url) return buildAbsoluteUrl(entity.audio_url);
-    const filePath = entity.result_file || entity.output_file;
-    if (!filePath) return "";
-    const filename = filePath.split(/[/\\]/).pop();
-    return `${API_BASE}/outputs/${filename}`;
+function populateSubstyleDropdown(genreId, selectId = "trackSubstyle") {
+    const sel = byId(selectId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">– kein Substil –</option>';
+    const genre = state.genres.find((g) => g.id === genreId);
+    if (!genre?.substyles?.length) return;
+    genre.substyles.forEach((sub) => {
+        const opt = document.createElement("option");
+        const label = typeof sub === "string" ? sub : (sub.id || sub);
+        opt.value = label;
+        opt.textContent = label;
+        sel.appendChild(opt);
+    });
 }
 
-function showResult(job, type) {
-    byId("progress").style.display = "none";
-    byId("errorMessage").style.display = "none";
-    const player = byId("audioPlayer");
-    player.src = buildAudioUrl(job);
-    player.load();
-    toggleResultActions(false);
+// ---------------------------------------------------------------------------
+// Engine-Status + Engine-Pill
+// ---------------------------------------------------------------------------
+async function loadEngineStatus() {
+    try {
+        const resp = await api.engineStatus();
+        const d = resp?.data ?? {};
+        state.activeEngine = d.engine || d.active_engine || "–";
+        state.activeProfile = d.active_profile || "–";
+        renderEnginePill(d);
+        renderStatusPage(d);
+    } catch (e) {
+        byId("enginePill").textContent = "Engine: offline";
+        byId("enginePill").className = "engine-pill engine-pill-error";
+        console.warn("Engine-Status fehlgeschlagen:", e);
+    }
+}
 
-    const metadata = job.metadata || {};
-    const presetLabel = getPresetLabel(job.preset_used || metadata.preset_id, job.type);
-    byId("resultTitle").textContent = metadata.title || job.title || "Unbenannt";
-    byId("resultType").textContent = type === "beat" ? "Beat" : "Track";
-    byId("resultGenre").textContent = metadata.genre || "-";
-    byId("resultCreated").textContent = `Erstellt: ${formatDateTime(job.created_at)}`;
-    byId("resultDetailsType").textContent = type === "beat" ? "Beat" : "Track";
-    byId("resultDetailsGenre").textContent = metadata.genre || "-";
-    byId("resultDetailsDuration").textContent = formatDuration(metadata.duration || 0);
-    byId("resultDetailsMood").textContent = metadata.mood || "-";
-    byId("resultDetailsPreset").textContent = presetLabel || "Keines";
-    byId("resultDetailsTempo").textContent = metadata.tempo ? `${metadata.tempo} BPM` : "-";
+function renderEnginePill(d) {
+    const pill = byId("enginePill");
+    const engine = d.engine || d.active_engine || "–";
+    const ready = d.ready === true;
+    pill.textContent = `${engine}${ready ? "" : " ⚠"}`;
+    pill.className = `engine-pill ${ready ? "engine-pill-ok" : "engine-pill-warn"}`;
+    pill.title = ready ? "Engine bereit" : "Engine nicht ready (Mock oder Setup fehlt)";
+}
 
-    if (presetLabel) {
-        byId("resultPreset").style.display = "inline-block";
-        byId("resultPreset").textContent = presetLabel;
+function renderStatusPage(d) {
+    const engine = d.engine || d.active_engine || "–";
+    const ready = d.ready === true;
+    byId("statusActiveEngine").textContent = engine;
+    byId("statusReady").textContent = ready ? "✓ bereit" : "⚠ nicht bereit";
+    byId("statusReady").className = ready ? "status-ok" : "status-warn";
+    byId("statusTransport").textContent = d.transport || d.details?.transport || "–";
+    byId("statusWorker").textContent = d.worker_running !== undefined
+        ? (d.worker_running ? "läuft" : "gestoppt")
+        : "–";
+
+    // Detail-Block
+    const det = byId("engineDetails");
+    if (d.activation_instructions) {
+        det.innerHTML = `<div class="hint-block hint-warn"><strong>Aktivierung nötig:</strong><br>${esc(d.activation_instructions)}</div>`;
     } else {
-        byId("resultPreset").style.display = "none";
-    }
-}
-
-function showFailedResult(job) {
-    state.currentJob = null;
-    state.currentJobId = job?.id || null;
-    state.currentProjectId = null;
-    byId("progress").style.display = "none";
-    byId("errorMessage").style.display = "block";
-    byId("errorText").textContent = job?.error || "Generierung abgebrochen";
-    toggleResultActions(true);
-    clearAudioPlayer();
-    updateResultStatus(job?.status || "failed", job?.error || "Generierung abgebrochen");
-}
-
-function handleDeleteResult() {
-    resetResultState();
-    resetResultUI();
-    navigateToPage("dashboard");
-}
-
-function handleBackToEditor() {
-    if (!state.currentJob) {
-        navigateToPage("dashboard");
-        return;
-    }
-    navigateToPage(state.currentJob.type === "beat" ? "beat" : "track");
-}
-
-async function handleVariation() {
-    if (!state.currentJob) return;
-    showMessage("Variation bleibt in diesem Block ein Mock-Platzhalter.");
-}
-
-async function handleRegenerate() {
-    if (!state.currentJob) return;
-    const project = projectFromCurrentJob();
-    if (state.currentJob.type === "beat") {
-        restoreBeatForm(project);
-        navigateToPage("beat");
-    } else {
-        restoreTrackForm(project);
-        navigateToPage("track");
-    }
-    showMessage("Einstellungen übernommen.");
-}
-
-function projectFromCurrentJob() {
-    const metadata = state.currentJob?.metadata || {};
-    return {
-        id: state.currentProjectId,
-        name: metadata.title || state.currentJob?.title,
-        type: state.currentJob?.type,
-        genre: metadata.genre,
-        mood: metadata.mood,
-        duration: metadata.duration,
-        preset_used: state.currentJob?.preset_used || metadata.preset_id || null,
-        lyrics: metadata.lyrics || null,
-        negative_prompts: metadata.negative_prompts || [],
-        parameters: metadata,
-        metadata,
-        output_file: state.currentJob?.result_file || null,
-        audio_url: state.currentJob?.audio_url || null,
-    };
-}
-
-async function handleSaveProject() {
-    if (!state.currentJob) {
-        showError("Kein Ergebnis zum Speichern vorhanden");
-        return;
+        det.innerHTML = "";
     }
 
-    const projectName = await promptForText({
-        title: "Projekt speichern",
-        description: "Gib deinem gespeicherten Projekt einen klaren Namen.",
-        label: "Projektname",
-        defaultValue: state.currentJob.metadata?.title || state.currentJob.title || "Neues Projekt",
-        confirmLabel: "Projekt speichern",
-    });
-    if (!projectName) return;
+    // Engine-Buttons highlighten
+    document.querySelectorAll(".engine-mode-btn").forEach((b) => b.classList.remove("active"));
+    const activeBtn = document.querySelector(`.engine-mode-btn[onclick*="'${engine}'"]`);
+    if (activeBtn) activeBtn.classList.add("active");
+}
 
-    const metadata = state.currentJob.metadata || {};
-    const payload = {
-        name: projectName,
-        project_type: state.currentJob.type,
-        genre: metadata.genre || "Techno",
-        mood: metadata.mood || "neutral",
-        duration: metadata.duration || 120,
-        output_file: state.currentJob.result_file || null,
-        preset_used: state.currentJob.preset_used || metadata.preset_id || null,
-        lyrics: metadata.lyrics || null,
-        negative_prompts: metadata.negative_prompts || [],
-        parameters: metadata,
-        metadata: { ...metadata, source_job_id: state.currentJob.id },
-    };
-
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+async function loadProfiles() {
     try {
-        const data = await apiRequest("/api/projects", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+        const resp = await api.profiles();
+        const d = resp?.data ?? {};
+        state.profiles = d.profiles ?? [];
+        state.activeProfile = d.active_profile || state.activeProfile;
+        populateProfileDropdowns();
+        renderProfileList();
+    } catch (e) {
+        console.warn("Profiles-Load fehlgeschlagen:", e);
+    }
+}
+
+function populateProfileDropdowns() {
+    ["beatProfile", "trackProfile"].forEach((id) => {
+        const sel = byId(id);
+        if (!sel) return;
+        const defaultOpt = sel.options[0];
+        sel.innerHTML = "";
+        sel.appendChild(defaultOpt);
+        state.profiles.forEach((p) => {
+            const opt = document.createElement("option");
+            opt.value = p.id;
+            opt.textContent = p.name || p.id;
+            if (p.id === state.activeProfile) opt.selected = true;
+            sel.appendChild(opt);
         });
-        state.currentProjectId = data.data.id;
-        await loadProjects();
-        showMessage("Projekt gespeichert");
-    } catch (error) {
-        showError(error.message);
-    }
+    });
 }
 
-async function handleExport() {
-    if (!state.currentJob && !state.currentProjectId) {
-        showError("Kein Ergebnis zum Exportieren vorhanden");
+function renderProfileList() {
+    const list = byId("profileList");
+    if (!list) return;
+    if (!state.profiles.length) {
+        list.innerHTML = '<p class="placeholder">Keine Profile in data/profiles/ gefunden.</p>';
         return;
     }
-
-    const exportName = await promptForText({
-        title: "Export erstellen",
-        description: "Lege den Dateinamen für den Export fest.",
-        label: "Export-Name",
-        defaultValue: buildSlug(state.currentJob?.metadata?.title || state.currentJob?.title || state.currentProjectId || "micks-export"),
-        confirmLabel: "Exportieren",
-    });
-    if (!exportName) return;
-
-    try {
-        const path = state.currentProjectId
-            ? `/api/projects/${state.currentProjectId}/export?export_name=${encodeURIComponent(exportName)}`
-            : `/api/export/${state.currentJob.id}?export_name=${encodeURIComponent(exportName)}`;
-        const data = await apiRequest(path, { method: "POST" });
-        triggerDownload(buildAbsoluteUrl(data.data.public_url), data.data.filename);
-        await loadProjects();
-        showMessage("Export erstellt");
-    } catch (error) {
-        showError(error.message);
-    }
-}
-
-async function loadProjects() {
-    try {
-        const data = await apiRequest("/api/projects");
-        state.allProjects = data.data?.projects || [];
-        applyFilters();
-        renderRecentProjects();
-    } catch (error) {
-        state.allProjects = [];
-        state.filteredProjects = [];
-        renderProjectCards();
-        renderRecentProjects();
-        showError(error.message);
-    }
-}
-
-function applyFilters() {
-    const searchTerm = (byId("projectSearch")?.value || "").trim().toLowerCase();
-    const typeFilter = document.querySelector(".filter-btn.active")?.dataset.filter || "all";
-    const genreFilter = byId("genreFilter")?.value || "";
-    const presetFilter = byId("presetFilter")?.value || "";
-    const sortFilter = byId("sortFilter")?.value || "newest";
-
-    state.filteredProjects = state.allProjects.filter((project) => {
-        const haystack = [project.name, project.genre, project.mood].map((value) => String(value || "").toLowerCase());
-        const matchesSearch = !searchTerm || haystack.some((value) => value.includes(searchTerm));
-        const matchesType = typeFilter === "all" || project.type === typeFilter;
-        const matchesGenre = !genreFilter || project.genre === genreFilter;
-        const hasPreset = Boolean(project.preset_used);
-        const matchesPreset =
-            !presetFilter ||
-            (presetFilter === "with" && hasPreset) ||
-            (presetFilter === "without" && !hasPreset) ||
-            project.preset_used === presetFilter;
-        return matchesSearch && matchesType && matchesGenre && matchesPreset;
-    });
-
-    state.filteredProjects.sort((left, right) => {
-        if (sortFilter === "oldest") return new Date(left.created_at) - new Date(right.created_at);
-        if (sortFilter === "name") return left.name.localeCompare(right.name, "de");
-        if (sortFilter === "export") return new Date(right.last_export_at || 0) - new Date(left.last_export_at || 0);
-        return new Date(right.created_at) - new Date(left.created_at);
-    });
-
-    renderProjectCards();
-}
-
-function renderProjectCards() {
-    const container = byId("projectsList");
-    if (!container) return;
-    if (!state.filteredProjects.length) {
-        container.innerHTML = '<p class="placeholder">Keine Projekte gefunden.</p>';
-        return;
-    }
-
-    container.innerHTML = state.filteredProjects.map((project) => {
-        const presetLabel = getPresetLabel(project.preset_used, project.type) || project.preset_used || "";
-        return `
-            <div class="project-card" data-project-id="${project.id}">
-                <div class="project-card-header">
-                    <div class="project-card-title">${escapeHtml(project.name)}</div>
-                    <div class="project-card-meta">
-                        <span class="project-card-badge type-${escapeHtml(project.type)}">${project.type === "track" ? "Track" : "Beat"}</span>
-                        <span class="project-card-badge">${escapeHtml(project.genre)}</span>
-                        ${presetLabel ? `<span class="project-card-badge preset">${escapeHtml(presetLabel)}</span>` : ""}
-                    </div>
-                </div>
-                <div class="project-card-info">
-                    <div>${formatDateTime(project.created_at)}</div>
-                    <div>${formatDuration(project.duration || 0)}</div>
-                    <div>${escapeHtml(project.mood || "-")}</div>
-                </div>
-                <div class="project-card-actions">
-                    <button type="button" class="project-card-btn primary" data-action="open" data-project-id="${project.id}" data-testid="project-open-btn">Öffnen</button>
-                    <button type="button" class="project-card-btn secondary" data-action="play" data-project-id="${project.id}" data-testid="project-play-btn">Abspielen</button>
-                    <button type="button" class="project-card-btn secondary" data-action="export" data-project-id="${project.id}" data-testid="project-export-btn">Export</button>
-                    <button type="button" class="project-card-btn delete" data-action="delete" data-project-id="${project.id}" data-testid="project-delete-btn">Löschen</button>
-                </div>
-            </div>
-        `;
-    }).join("");
-    attachActionButtonHandlers(container);
-}
-
-function renderRecentProjects() {
-    const container = byId("recentProjects");
-    if (!container) return;
-    const recentProjects = [...state.allProjects]
-        .sort((left, right) => new Date(right.created_at) - new Date(left.created_at))
-        .slice(0, 3);
-
-    if (!recentProjects.length) {
-        container.innerHTML = '<p class="placeholder">Noch keine Projekte gespeichert.</p>';
-        return;
-    }
-
-    container.innerHTML = recentProjects.map((project) => `
-        <div class="project-item compact">
-            <div>
-                <div class="project-title">${escapeHtml(project.name)}</div>
-                <div class="project-meta">${escapeHtml(project.type.toUpperCase())} · ${escapeHtml(project.genre)} · ${formatDateTime(project.created_at)}</div>
-            </div>
-            <div class="project-actions">
-                <button type="button" class="btn btn-secondary" data-action="open" data-project-id="${project.id}" data-testid="recent-project-open-btn">Öffnen</button>
-                <button type="button" class="btn btn-secondary" data-action="play" data-project-id="${project.id}" data-testid="recent-project-play-btn">Start</button>
-            </div>
+    list.innerHTML = state.profiles.map((p) => `
+        <div class="profile-item ${p.id === state.activeProfile ? "profile-item-active" : ""}"
+             data-profile-id="${esc(p.id)}">
+            <strong>${esc(p.name || p.id)}</strong>
+            ${p.description ? `<small>${esc(p.description)}</small>` : ""}
+            <button class="btn btn-sm btn-secondary" onclick="switchProfile('${esc(p.id)}')">
+                ${p.id === state.activeProfile ? "Aktiv" : "Aktivieren"}
+            </button>
         </div>
     `).join("");
-    attachActionButtonHandlers(container);
 }
 
-function attachActionButtonHandlers(container) {
-    container.querySelectorAll("[data-action][data-project-id]").forEach((button) => {
-        button.onclick = null;
-        button.addEventListener("click", handleActionButtonClick);
+// ---------------------------------------------------------------------------
+// Engine-Formular-Dropdowns befüllen
+// ---------------------------------------------------------------------------
+function populateEngineDropdowns() {
+    const engines = [
+        { value: "ace", label: "ACE (ComfyUI)" },
+        { value: "musicgen", label: "MusicGen (nicht ready)" },
+        { value: "mock", label: "Mock (Test)" },
+    ];
+    ["beatEngine", "trackEngine"].forEach((id) => {
+        const sel = byId(id);
+        if (!sel) return;
+        const defaultOpt = sel.options[0];
+        sel.innerHTML = "";
+        sel.appendChild(defaultOpt);
+        engines.forEach((e) => {
+            const opt = document.createElement("option");
+            opt.value = e.value;
+            opt.textContent = e.label;
+            if (e.value === state.activeEngine) opt.selected = true;
+            sel.appendChild(opt);
+        });
     });
 }
 
-function handleActionButtonClick(event) {
-    const actionButton = event.currentTarget;
-    const { action, projectId } = actionButton.dataset;
-    if (action === "open") {
-        void openProject(projectId, event);
-        return;
-    }
-    if (action === "play") {
-        void playProjectAudio(projectId, event);
-        return;
-    }
-    if (action === "export") {
-        void exportProject(projectId, event);
-        return;
-    }
-    if (action === "delete") {
-        void deleteProject(projectId, event);
-    }
+// ---------------------------------------------------------------------------
+// Slider-Labels
+// ---------------------------------------------------------------------------
+function setupSliders() {
+    const pairs = [
+        ["beatEnergy", "beatEnergyVal"],
+        ["beatDarkness", "beatDarknessVal"],
+        ["beatMelody", "beatMelodyVal"],
+        ["trackEnergy", "trackEnergyVal"],
+        ["trackCreativity", "trackCreativityVal"],
+        ["trackMelody", "trackMelodyVal"],
+        ["trackVocal", "trackVocalVal"],
+    ];
+    pairs.forEach(([rangeId, labelId]) => {
+        const range = byId(rangeId);
+        const label = byId(labelId);
+        if (!range || !label) return;
+        range.addEventListener("input", () => {
+            label.textContent = range.value;
+        });
+    });
 }
 
-function handleProjectListClick(event) {
-    const actionButton = event.target.closest("[data-action][data-project-id]");
-    if (!actionButton) return;
-    handleActionButtonClick({ currentTarget: actionButton, target: actionButton, preventDefault: () => {}, stopPropagation: () => {} });
-}
+// ---------------------------------------------------------------------------
+// Beat-Generierung
+// ---------------------------------------------------------------------------
+function setupBeatForm() {
+    const form = byId("beatForm");
+    if (!form) return;
 
-function handleRecentProjectsClick(event) {
-    const actionButton = event.target.closest("[data-action][data-project-id]");
-    if (!actionButton) return;
-    handleActionButtonClick({ currentTarget: actionButton, target: actionButton, preventDefault: () => {}, stopPropagation: () => {} });
-}
+    byId("beatGenre")?.addEventListener("change", () => {
+        // Beat hat keinen Substyle
+    });
 
-function normalizeProject(project) {
-    return {
-        ...project,
-        parameters: project.parameters || {},
-        metadata: project.metadata || {},
-        negative_prompts: project.negative_prompts || [],
-        exports: project.exports || [],
-    };
-}
-
-function projectToJob(project) {
-    const metadata = {
-        ...project.parameters,
-        ...project.metadata,
-        title: project.metadata?.title || project.name,
-        genre: project.genre,
-        mood: project.mood,
-        duration: project.parameters?.duration || project.duration,
-        lyrics: project.lyrics || project.parameters?.lyrics || null,
-        negative_prompts: project.negative_prompts || [],
-        preset_id: project.preset_used || project.parameters?.preset_id || null,
-    };
-    return {
-        id: project.last_job_id || project.id,
-        type: project.type,
-        title: project.name,
-        status: "completed",
-        progress: 100,
-        result_file: project.output_file || null,
-        output_file: project.output_file || null,
-        audio_url: project.audio_url || project.download_url || null,
-        created_at: project.created_at,
-        preset_used: project.preset_used || null,
-        metadata,
-    };
-}
-
-async function openProject(projectId, event) {
-    event?.stopPropagation();
-    try {
-        const data = await apiRequest(`/api/projects/${projectId}`);
-        const project = normalizeProject(data.data);
-        state.currentProjectId = project.id;
-        state.currentJob = projectToJob(project);
-        state.currentJobId = state.currentJob.id;
-
-        if (project.type === "beat") {
-            restoreBeatForm(project);
-        } else {
-            restoreTrackForm(project);
-        }
-
-        navigateToPage("result");
-        showResult(state.currentJob, project.type);
-        showMessage("Projekt geladen");
-    } catch (error) {
-        showError(error.message);
-    }
-}
-
-function restoreTrackForm(project) {
-    byId("trackTitle").value = project.name || project.metadata?.title || "";
-    byId("trackGenre").value = project.genre || "";
-    byId("trackMood").value = project.mood || "";
-    byId("trackLanguage").value = project.parameters?.language || project.metadata?.language || "en";
-    byId("trackDuration").value = pickClosestOptionValue("trackDuration", project.parameters?.duration || project.duration || 60);
-    byId("trackLyrics").value = project.lyrics || project.parameters?.lyrics || "";
-    byId("trackNegative").value = (project.negative_prompts || []).join(", ");
-    byId("trackEnergy").value = project.parameters?.energy || 5;
-    byId("trackTempo").value = project.parameters?.tempo || 120;
-    byId("trackCreativity").value = project.parameters?.creativity || 5;
-    byId("trackCatchiness").value = project.parameters?.catchiness || 5;
-    byId("trackVocal").value = project.parameters?.vocal_strength || 5;
-    byId("trackPreset").value = project.preset_used || "";
-    applyTrackPreset(project.preset_used || "");
-    state.selectedMode = "full_track";
-    syncModeChrome();
-    setupSliderUpdates();
-}
-
-function restoreBeatForm(project) {
-    byId("beatTitle").value = project.name || "";
-    byId("beatGenre").value = project.genre || "";
-    byId("beatMood").value = project.mood || "";
-    byId("beatDuration").value = pickClosestOptionValue("beatDuration", project.parameters?.duration || project.duration || 45);
-    byId("beatTempo").value = project.parameters?.tempo || 120;
-    byId("beatHeaviness").value = project.parameters?.heaviness || 5;
-    byId("beatMelody").value = project.parameters?.melody_amount || 3;
-    byId("beatEnergy").value = project.parameters?.energy || 6;
-    byId("beatPreset").value = project.preset_used || "";
-    applyBeatPreset(project.preset_used || "");
-    state.selectedMode = project.preset_used === "beat_hiphop_boom" || project.preset_used === "beat_hiphop_trap"
-        ? "hiphop_beat"
-        : "techno_beat";
-    syncModeChrome();
-    setupSliderUpdates();
-}
-
-async function playProjectAudio(projectId, event) {
-    event?.stopPropagation();
-    try {
-        const data = await apiRequest(`/api/projects/${projectId}`);
-        const audioUrl = buildAudioUrl(data.data);
-        if (!audioUrl) {
-            showError("Keine Audiodatei verfügbar");
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const genre = byId("beatGenre").value;
+        const prompt = byId("beatPrompt").value.trim();
+        if (!genre || !prompt) {
+            showToast("Bitte Genre und Prompt ausfüllen.", true);
             return;
         }
-        const audio = new Audio(audioUrl);
-        await audio.play();
-    } catch (error) {
-        showError(error.message);
-    }
+
+        const genreObj = state.genres.find((g) => g.id === genre);
+        const defaultBpm = genreObj?.bpm_default ?? 125;
+
+        const bpmRaw = byId("beatBpm").value;
+        const seedRaw = byId("beatSeed").value;
+
+        const body = {
+            title: byId("beatTitle").value.trim() || `Beat – ${genre}`,
+            genre,
+            prompt,
+            negative_prompt: byId("beatNegative").value.trim() || undefined,
+            bpm: bpmRaw ? Number(bpmRaw) : defaultBpm,
+            duration: Number(byId("beatDuration").value),
+            energy: Number(byId("beatEnergy").value),
+            darkness: Number(byId("beatDarkness").value),
+            melody: Number(byId("beatMelody").value),
+        };
+
+        const engineVal = byId("beatEngine")?.value;
+        if (engineVal) body.engine = engineVal;
+        const profileVal = byId("beatProfile")?.value;
+        if (profileVal) body.profile = profileVal;
+        if (seedRaw !== "") body.seed = Number(seedRaw);
+
+        // Leere optionale Felder entfernen
+        Object.keys(body).forEach((k) => body[k] === undefined && delete body[k]);
+
+        state.lastRequest = body;
+        state.lastType = "beat";
+
+        await startGeneration("beat", body);
+    });
 }
 
-async function deleteProject(projectId, event) {
-    event?.stopPropagation();
-    if (!window.confirm("Projekt wirklich löschen?")) return;
-    try {
-        await apiRequest(`/api/projects/${projectId}`, { method: "DELETE" });
-        if (state.currentProjectId === projectId) {
-            handleDeleteResult();
+// ---------------------------------------------------------------------------
+// Track-Generierung
+// ---------------------------------------------------------------------------
+function setupTrackForm() {
+    const form = byId("trackForm");
+    if (!form) return;
+
+    byId("trackGenre")?.addEventListener("change", () => {
+        populateSubstyleDropdown(byId("trackGenre").value);
+        // BPM-Default setzen
+        const genre = state.genres.find((g) => g.id === byId("trackGenre").value);
+        if (genre?.bpm_default && !byId("trackBpm").value) {
+            byId("trackBpm").placeholder = `z. B. ${genre.bpm_default}`;
         }
-        await loadProjects();
-        showMessage("Projekt gelöscht");
-    } catch (error) {
-        showError(error.message);
+    });
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const genre = byId("trackGenre").value;
+        const prompt = byId("trackPrompt").value.trim();
+        if (!genre || !prompt) {
+            showToast("Bitte Genre und Prompt ausfüllen.", true);
+            return;
+        }
+
+        const genreObj = state.genres.find((g) => g.id === genre);
+        const defaultBpm = genreObj?.bpm_default ?? 125;
+        const bpmRaw = byId("trackBpm").value;
+        const seedRaw = byId("trackSeed").value;
+
+        const body = {
+            title: byId("trackTitle").value.trim() || `Track – ${genre}`,
+            genre,
+            prompt,
+            negative_prompt: byId("trackNegative").value.trim() || undefined,
+            substyle: byId("trackSubstyle").value || undefined,
+            text_idea: byId("trackTextIdea").value.trim() || undefined,
+            bpm: bpmRaw ? Number(bpmRaw) : defaultBpm,
+            duration: Number(byId("trackDuration").value),
+            energy: Number(byId("trackEnergy").value),
+            creativity: Number(byId("trackCreativity").value),
+            melody: Number(byId("trackMelody").value),
+            vocal_strength: Number(byId("trackVocal").value),
+        };
+
+        const engineVal = byId("trackEngine")?.value;
+        if (engineVal) body.engine = engineVal;
+        const profileVal = byId("trackProfile")?.value;
+        if (profileVal) body.profile = profileVal;
+        if (seedRaw !== "") body.seed = Number(seedRaw);
+
+        Object.keys(body).forEach((k) => body[k] === undefined && delete body[k]);
+
+        state.lastRequest = body;
+        state.lastType = "track";
+
+        await startGeneration("track", body);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Generierung starten + Job-Polling
+// ---------------------------------------------------------------------------
+async function startGeneration(type, body) {
+    navigateTo("result");
+    showResultRunning("Generierung gestartet…");
+
+    try {
+        const resp = type === "beat"
+            ? await api.beat(body)
+            : await api.track(body);
+
+        const jobId = resp?.data?.job_id ?? resp?.job_id;
+        if (!jobId) throw new Error("Keine job_id in der Antwort");
+
+        startPolling(jobId, body);
+    } catch (err) {
+        showResultError(err.message);
     }
 }
 
-async function exportProject(projectId, event) {
-    event?.stopPropagation();
-    const project = state.allProjects.find((candidate) => candidate.id === projectId);
-    const exportName = buildSlug(project?.name || "projekt-export", "projekt-export");
+function startPolling(jobId, originalBody) {
+    stopPolling();
+    state.pollTimer = setInterval(async () => {
+        try {
+            const resp = await api.job(jobId);
+            const job = resp?.data ?? resp ?? {};
+            handleJobUpdate(job, originalBody);
+        } catch (err) {
+            // Netzwerkfehler beim Polling → kurz warten, nicht sofort abbrechen
+            console.warn("Polling-Fehler:", err);
+        }
+    }, POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+    if (state.pollTimer) {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+    }
+}
+
+function handleJobUpdate(job, originalBody) {
+    const status = job.status || "unknown";
+    const pct = Math.round((job.progress ?? 0) * 100);
+
+    if (status === "completed") {
+        stopPolling();
+        state.activeJob = job;
+        showResultCompleted(job, originalBody);
+    } else if (status === "failed") {
+        stopPolling();
+        showResultError(job.error || "Generierung fehlgeschlagen.");
+    } else {
+        // queued / running
+        const msg = status === "queued" ? "In der Warteschlange…" : `Generierung läuft… ${pct > 0 ? pct + "%" : ""}`;
+        showResultRunning(msg, pct);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Ergebnis-Seite rendern
+// ---------------------------------------------------------------------------
+function showResultRunning(msg, pct = 0) {
+    byId("resultStatusBanner").style.display = "flex";
+    byId("resultStatusBanner").className = "result-status-banner status-running";
+    byId("resultStatusDot").textContent = "●";
+    byId("resultStatusMsg").textContent = msg;
+    byId("resultErrorBanner").style.display = "none";
+    byId("resultProgressWrap").style.display = pct > 0 ? "flex" : "none";
+    if (pct > 0) {
+        byId("resultProgressFill").style.width = `${pct}%`;
+        byId("resultProgressText").textContent = `${pct}%`;
+    }
+    // Aktionen sperren
+    ["btnSave", "btnExport", "btnRegenerate"].forEach((id) => {
+        const b = byId(id);
+        if (b) b.disabled = true;
+    });
+}
+
+function showResultError(msg) {
+    byId("resultStatusBanner").style.display = "none";
+    byId("resultErrorBanner").style.display = "block";
+    byId("resultErrorText").textContent = msg;
+    byId("resultProgressWrap").style.display = "none";
+}
+
+function showResultCompleted(job, originalBody) {
+    byId("resultStatusBanner").style.display = "flex";
+    byId("resultStatusBanner").className = "result-status-banner status-completed";
+    byId("resultStatusMsg").textContent = "Fertig";
+    byId("resultProgressWrap").style.display = "none";
+    setTimeout(() => { byId("resultStatusBanner").style.display = "none"; }, 1500);
+
+    byId("resultErrorBanner").style.display = "none";
+
+    const title = job.title || originalBody?.title || "Ergebnis";
+    byId("resultTitle").textContent = esc(title);
+
+    const type = state.lastType === "beat" ? "Beat" : "Track";
+    const genre = originalBody?.genre || job.genre || "–";
+    const engine = job.engine_used || state.activeEngine || "–";
+    byId("resultType").textContent = type;
+    byId("resultGenre").textContent = genre;
+    byId("resultEngine").textContent = engine;
+    byId("resultDurationChip").textContent = fmtDuration(originalBody?.duration);
+
+    // Details
+    byId("detailType").textContent = type;
+    byId("detailGenre").textContent = genre;
+    byId("detailSubstyle").textContent = originalBody?.substyle || "–";
+    byId("detailDuration").textContent = fmtDuration(originalBody?.duration);
+    byId("detailBpm").textContent = originalBody?.bpm ?? "–";
+    byId("detailEngine").textContent = engine;
+    byId("detailProfile").textContent = originalBody?.profile || state.activeProfile || "–";
+    byId("detailPrompt").textContent = originalBody?.prompt || "–";
+
+    // Audio
+    const audioUrl = job.output_url || job.audio_url;
+    const isMock = engine === "mock";
+    byId("mockBanner").style.display = isMock ? "block" : "none";
+    if (audioUrl) {
+        const player = byId("audioPlayer");
+        player.src = audioUrl.startsWith("http") ? audioUrl : `${API_BASE}${audioUrl}`;
+        player.load();
+    }
+
+    // Aktionen freischalten
+    ["btnSave", "btnExport", "btnRegenerate"].forEach((id) => {
+        const b = byId(id);
+        if (b) b.disabled = false;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Ergebnis-Aktionen
+// ---------------------------------------------------------------------------
+function setupResultActions() {
+    byId("btnBack")?.addEventListener("click", () => {
+        stopPolling();
+        navigateTo(state.lastType === "beat" ? "beat" : "track");
+    });
+
+    byId("btnRegenerate")?.addEventListener("click", async () => {
+        if (!state.lastRequest || !state.lastType) return;
+        await startGeneration(state.lastType, state.lastRequest);
+    });
+
+    byId("btnSave")?.addEventListener("click", async () => {
+        if (!state.activeJob) return;
+        const name = await promptForName("Projekt speichern", "Projektname", state.activeJob.title || "Mein Projekt");
+        if (!name) return;
+        try {
+            await api.saveProject({
+                title: name,
+                job_id: state.activeJob.id || state.activeJob.job_id,
+                type: state.lastType,
+                genre: state.lastRequest?.genre,
+                output_url: state.activeJob.output_url,
+                metadata: state.lastRequest,
+            });
+            showToast("Projekt gespeichert.");
+        } catch (err) {
+            showToast(`Fehler beim Speichern: ${err.message}`, true);
+        }
+    });
+
+    byId("btnExport")?.addEventListener("click", () => {
+        const url = state.activeJob?.output_url;
+        if (!url) return;
+        const absUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+        const a = document.createElement("a");
+        a.href = absUrl;
+        a.download = `${state.activeJob?.title || "export"}.wav`.replace(/\s+/g, "_");
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Engine switchen (Status-Seite)
+// ---------------------------------------------------------------------------
+window.switchEngine = async function (engine) {
+    const note = byId("engineSwitchNote");
     try {
-        const data = await apiRequest(`/api/projects/${projectId}/export?export_name=${encodeURIComponent(exportName)}`, {
-            method: "POST",
+        await api.switchEngine(engine);
+        showToast(`Engine auf „${engine}" umgestellt.`);
+        await loadEngineStatus();
+        populateEngineDropdowns();
+    } catch (err) {
+        if (note) {
+            note.style.display = "block";
+            note.textContent = `Fehler: ${err.message}`;
+        }
+        showToast(`Umschalten fehlgeschlagen: ${err.message}`, true);
+    }
+};
+
+window.switchProfile = async function (profileId) {
+    try {
+        await api.switchProfile(profileId);
+        state.activeProfile = profileId;
+        showToast(`Profil „${profileId}" aktiviert.`);
+        renderProfileList();
+        populateProfileDropdowns();
+    } catch (err) {
+        showToast(`Profil-Wechsel fehlgeschlagen: ${err.message}`, true);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Projekte laden
+// ---------------------------------------------------------------------------
+async function loadProjects() {
+    try {
+        const resp = await api.projects();
+        const list = resp?.data ?? resp?.projects ?? [];
+        state.allProjects = Array.isArray(list) ? list : [];
+    } catch (e) {
+        state.allProjects = [];
+    }
+    renderProjects();
+    renderDashboardRecent();
+}
+
+function renderDashboardRecent() {
+    const el = byId("dashRecentList");
+    if (!el) return;
+    const recent = [...state.allProjects]
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .slice(0, 5);
+    if (!recent.length) {
+        el.innerHTML = '<p class="placeholder">Noch keine Projekte</p>';
+        return;
+    }
+    el.innerHTML = recent.map((p) => `
+        <div class="recent-item">
+            <span class="recent-title">${esc(p.title || p.name || "Ohne Titel")}</span>
+            <span class="recent-meta">${esc(p.type || "–")} · ${esc(p.genre || "–")} · ${fmtDate(p.created_at)}</span>
+        </div>
+    `).join("");
+}
+
+function renderProjects() {
+    const el = byId("projectsList");
+    if (!el) return;
+    const search = byId("projectSearch")?.value.toLowerCase() ?? "";
+    const filterType = document.querySelector(".filter-btn.active")?.dataset.filter ?? "all";
+    const filterGenre = byId("genreFilter")?.value ?? "";
+    const sortMode = byId("sortFilter")?.value ?? "newest";
+
+    let list = [...state.allProjects];
+
+    if (search) list = list.filter((p) => (p.title || "").toLowerCase().includes(search));
+    if (filterType !== "all") list = list.filter((p) => p.type === filterType);
+    if (filterGenre) list = list.filter((p) => p.genre === filterGenre);
+
+    list.sort((a, b) => {
+        if (sortMode === "oldest") return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+        if (sortMode === "name") return (a.title || "").localeCompare(b.title || "");
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+    state.filteredProjects = list;
+
+    if (!list.length) {
+        el.innerHTML = '<p class="placeholder">Keine Projekte gefunden.</p>';
+        return;
+    }
+
+    el.innerHTML = list.map((p) => `
+        <div class="project-card">
+            <div class="project-card-main">
+                <strong class="project-title">${esc(p.title || p.name || "Ohne Titel")}</strong>
+                <div class="project-meta">
+                    <span class="meta-chip">${esc(p.type || "–")}</span>
+                    <span class="meta-chip meta-chip-genre">${esc(p.genre || "–")}</span>
+                    <span class="project-date">${fmtDate(p.created_at)}</span>
+                </div>
+            </div>
+            ${(p.output_url || p.audio_url) ? `
+            <div class="project-card-actions">
+                <audio controls src="${esc((p.output_url || p.audio_url).startsWith("http") ? (p.output_url || p.audio_url) : API_BASE + (p.output_url || p.audio_url))}" class="audio-player audio-player-small"></audio>
+            </div>` : ""}
+        </div>
+    `).join("");
+}
+
+function setupProjectFilters() {
+    byId("projectSearch")?.addEventListener("input", renderProjects);
+    byId("genreFilter")?.addEventListener("change", renderProjects);
+    byId("sortFilter")?.addEventListener("change", renderProjects);
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            renderProjects();
         });
-        triggerDownload(buildAbsoluteUrl(data.data.public_url), data.data.filename);
-        await loadProjects();
-        showMessage("Projekt exportiert");
-    } catch (error) {
-        showError(error.message);
-    }
+    });
 }
 
-async function loadSystemStatus() {
-    try {
-        const data = await apiRequest("/health");
-        const label = data.engine_name && data.engine_name !== data.engine_type
-            ? `${data.engine_type} · ${data.engine_name}`
-            : data.engine_type;
-        byId("statusEngine").textContent = label || "-";
-        byId("statusProjects").textContent = data.total_projects ?? "-";
-        byId("statusOutputs").textContent = data.total_outputs ?? "-";
-        byId("statusVersion").textContent = data.version || "-";
-        byId("systemStatus").textContent = `• ${label || "unbekannt"}`;
-    } catch (error) {
-        console.error("Status laden fehlgeschlagen", error);
-    }
+// ---------------------------------------------------------------------------
+// Name-Dialog
+// ---------------------------------------------------------------------------
+function setupNameDialog() {
+    const dialog = byId("nameDialog");
+    if (!dialog) return;
+    const form = byId("nameDialogForm");
+    const cancelBtn = byId("nameDialogCancel");
+
+    const close = (value) => {
+        const resolve = state.dialogResolve;
+        state.dialogResolve = null;
+        if (dialog.open) dialog.close();
+        resolve?.(value);
+    };
+
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        close(byId("nameDialogField").value.trim() || null);
+    });
+    cancelBtn.addEventListener("click", () => close(null));
+    dialog.addEventListener("cancel", (e) => { e.preventDefault(); close(null); });
+    dialog.addEventListener("click", (e) => {
+        const r = dialog.getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+            close(null);
+        }
+    });
 }
 
+function promptForName(title, label, defaultVal = "") {
+    const dialog = byId("nameDialog");
+    if (!dialog) return Promise.resolve(window.prompt(label, defaultVal));
 
+    if (state.dialogResolve) { state.dialogResolve(null); state.dialogResolve = null; }
+
+    byId("nameDialogTitle").textContent = title;
+    byId("nameDialogLabel").textContent = label;
+    byId("nameDialogField").value = defaultVal;
+
+    return new Promise((resolve) => {
+        state.dialogResolve = resolve;
+        dialog.showModal();
+        requestAnimationFrame(() => {
+            const f = byId("nameDialogField");
+            f.focus();
+            f.select();
+        });
+    });
+}
+
+// ---------------------------------------------------------------------------
+// DOMContentLoaded — Initialisierung
+// ---------------------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", async () => {
+    setupNavigation();
+    setupSliders();
+    setupBeatForm();
+    setupTrackForm();
+    setupResultActions();
+    setupProjectFilters();
+    setupNameDialog();
+
+    // Parallel laden
+    await Promise.allSettled([
+        loadGenres(),
+        loadEngineStatus(),
+        loadProfiles(),
+        loadProjects(),
+    ]);
+
+    // Engine-Dropdowns erst nach Status befüllen
+    populateEngineDropdowns();
+});

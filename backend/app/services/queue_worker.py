@@ -22,7 +22,8 @@ class QueueWorker:
 
     def __init__(self):
         self.worker_id = f"worker-{uuid.uuid4().hex[:8]}"
-        self.engine = get_engine_adapter()
+        # Do NOT cache engine here – resolve dynamically per job so that
+        # engine hot-swaps via /api/engine/mode take effect immediately.
         self._running = False
         self._heartbeat_task = None
         self._stale_job_task = None
@@ -139,11 +140,14 @@ class QueueWorker:
             await job_repo.update_status(job_id, JobStatus.RUNNING, progress=10)
             await session.commit()
 
+            # Resolve engine dynamically – respects live ENGINE_MODE hot-swap
+            engine = get_engine_adapter()
+            logger.info("job_using_engine", job_id=job_id, engine=engine.name, mode=settings.ENGINE_MODE)
             # Generate audio
             if job.type == "track":
-                result_file = await self.engine.generate_track_audio(job.metadata_json)
+                result_file = await engine.generate_track_audio(job.metadata_json)
             else:
-                result_file = await self.engine.generate_beat_audio(job.metadata_json)
+                result_file = await engine.generate_beat_audio(job.metadata_json)
 
             # Validate result
             result_path = Path(result_file)
@@ -273,7 +277,7 @@ class QueueWorker:
         return {
             "worker_id": self.worker_id,
             "running": self._running,
-            "engine": self.engine.name,
+            "engine": settings.ENGINE_MODE,
             "current_job_id": self._current_job_id,
             "has_current_job": self._current_job is not None,
             "current_job_processing": (

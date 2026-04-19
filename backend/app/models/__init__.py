@@ -152,6 +152,7 @@ class SystemStatus(BaseModel):
     status: str = Field(default="ok")
     engine_type: str
     engine_name: str = Field(default="unknown")
+    engine_ready: bool = False
     version: str
     data_dir_ok: bool = True
     total_projects: int = 0
@@ -182,3 +183,99 @@ class APIResponse(BaseModel):
     message: str
     data: Optional[dict] = None
     error: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# V2 Request / Response Models
+# Sauber getrennte Felder: prompt | negative_prompt | text_idea (nie vermischt)
+# ---------------------------------------------------------------------------
+
+class BeatRequest(BaseModel):
+    """V2 Beat-Generierungs-Request.
+
+    prompt      = freier Musikprompt (Sound, Groove, Atmosphäre, Stil)
+    negative_prompt = was vermieden werden soll (kommagetrennt oder Freitext)
+    Kein text_idea – Beats sind instrumental, keine Text-Dimension.
+    """
+
+    title: str = Field(..., min_length=1, max_length=100, description="Beat-Titel")
+    genre: str = Field(..., description="Hauptgenre: techno oder hiphop")
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Freier Musikprompt: Sound, Groove, Atmosphäre, Stil",
+    )
+    negative_prompt: str = Field(
+        default="",
+        max_length=1000,
+        description="Was vermieden werden soll (kommagetrennt oder Satz)",
+    )
+    bpm: int = Field(default=125, ge=60, le=200, description="Beats per Minute")
+    duration: int = Field(default=60, ge=10, le=300, description="Dauer in Sekunden")
+    energy: int = Field(default=7, ge=1, le=10, description="Energie (1=ruhig, 10=maximal)")
+    darkness: int = Field(default=5, ge=1, le=10, description="Dunkelheit/Schwere (1=hell, 10=dunkel)")
+    melody: int = Field(default=3, ge=0, le=10, description="Melodie-Anteil (0=rein rhythmisch, 10=sehr melodisch)")
+    engine: Optional[str] = Field(
+        default=None, description="Engine-Override: mock | ace | musicgen (leer = aktive Engine)"
+    )
+    profile: Optional[str] = Field(default=None, description="Engine-Profil-Override")
+    seed: Optional[int] = Field(default=None, description="Optionaler Seed für Reproduzierbarkeit")
+
+
+class TrackRequest(BaseModel):
+    """V2 Full-Track-Generierungs-Request.
+
+    Strikte Feldregel (nie vermischen):
+      prompt       = Musik-/Arbeitsbeschreibung (Sound, Stil, Aufbau, Energie)
+      negative_prompt = Ausschlüsse
+      text_idea    = Themen-/Ideeninput — KEIN fertiger Songtext.
+                     Wird intern als Themen-Metadaten behandelt,
+                     niemals 1:1 als Lyrics an die Engine weitergegeben.
+    """
+
+    title: str = Field(..., min_length=1, max_length=100, description="Track-Titel")
+    genre: str = Field(..., description="Hauptgenre: techno oder hiphop")
+    substyle: str = Field(
+        default="",
+        max_length=100,
+        description="Substil, z.B. melodic, dark, hard, boombap, trap, lofi",
+    )
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Freier Musikprompt: Sound, Stil, Aufbau, Energie, Atmosphäre",
+    )
+    negative_prompt: str = Field(
+        default="",
+        max_length=1000,
+        description="Was vermieden werden soll (kommagetrennt oder Satz)",
+    )
+    text_idea: str = Field(
+        default="",
+        max_length=2000,
+        description=(
+            "Themen-/Ideeninput — KEIN fertiger Songtext. "
+            "Wird als Themen-Metadaten gespeichert und intern verarbeitet, "
+            "niemals direkt als Lyrics an die Engine weitergegeben."
+        ),
+    )
+    bpm: int = Field(default=125, ge=60, le=200)
+    duration: int = Field(default=180, ge=10, le=600, description="Dauer in Sekunden")
+    energy: int = Field(default=6, ge=1, le=10)
+    creativity: int = Field(default=6, ge=1, le=10, description="Kreativität/Überraschungsgrad")
+    melody: int = Field(default=5, ge=0, le=10, description="Melodie-Anteil")
+    vocal_strength: int = Field(default=2, ge=0, le=10, description="Vocal-Stärke (0=rein instrumental, 10=starke Vocals)")
+    engine: Optional[str] = Field(default=None, description="Engine-Override: mock | ace | musicgen")
+    profile: Optional[str] = Field(default=None, description="Engine-Profil-Override")
+    seed: Optional[int] = Field(default=None)
+
+
+class GenerationStarted(BaseModel):
+    """V2 Response nach erfolgreich gestartetem Generierungs-Job."""
+
+    job_id: str
+    status: str = "queued"
+    title: str
+    engine_used: str

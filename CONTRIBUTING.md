@@ -6,7 +6,7 @@ Thank you for your interest in contributing to MicksMusikkiste! This document pr
 
 ### Prerequisites
 - Python 3.9+
-- PostgreSQL 12+
+- Optional: PostgreSQL 12+ (lokal fuer Einstieg ist SQLite moeglich)
 - Node.js (for frontend)
 - FastAPI knowledge
 
@@ -19,7 +19,9 @@ Thank you for your interest in contributing to MicksMusikkiste! This document pr
 ```bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1  # Windows
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
+copy backend/.env.example backend/.env
+python backend/scripts/migrate.py
 python backend/run.py
 # Server runs on http://localhost:8000
 ```
@@ -29,6 +31,8 @@ python backend/run.py
 psql -U postgres
 CREATE DATABASE musikkiste;
 ```
+
+Hinweis: Fuer den schnellsten lokalen Start kann in `backend/.env` auch SQLite genutzt werden.
 
 ## Development Workflow
 
@@ -44,7 +48,7 @@ git checkout -b feature/your-feature-name
 - Keep API endpoints RESTful
 
 ### Testing Your Changes
-- Test API endpoints locally: `curl http://localhost:8000/api/...`
+- Test API endpoints locally: `curl http://localhost:8000/api/v2/...`
 - Verify database integrity
 - Check frontend-backend integration
 

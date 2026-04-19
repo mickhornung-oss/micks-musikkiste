@@ -1,0 +1,12 @@
+{
+  "id": "ace_quality",
+  "name": "ACE Quality",
+  "description": "ACE-Step 1.5 — Qualitätsmodus (mehr Schritte), Multi-Komponenten-Modell",
+  "engine": "ace",
+  "available": false,
+  "workflow": "data/workflows/ace_step15_quality.json",
+  "model": "vendor/ComfyUI/models/TTS/ACE-Step-v1.5-3.5B",
+  "steps": 30,
+  "duration_max": 300,
+  "notes": "Vorbereitet — Modell-Download erforderlich: ACE-Step-v1.5-3.5B (~14 GB)"
+}

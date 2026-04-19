@@ -1,5 +1,6 @@
 """Consolidated API routes with database-backed persistence."""
 
+import re
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -22,8 +23,9 @@ from app.services.music_service import MusicGenerationService
 from app.services.presets import presets_manager
 from app.services.project_service import ProjectService
 from app.services.queue_worker import get_worker
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -72,10 +74,12 @@ async def health_check() -> SystemStatus:
         except Exception as exc:
             logger.warning("health_project_count_failed", error=str(exc))
 
+    diag = get_engine_diagnostics()
     return SystemStatus(
         status="ok" if database["ok"] else "degraded",
         engine_type=settings.ENGINE_MODE,
         engine_name=settings.ENGINE_MODE,
+        engine_ready=bool(diag.get("ready", False)),
         version=settings.API_VERSION,
         data_dir_ok=True,
         total_projects=total_projects,
@@ -146,6 +150,125 @@ async def get_diagnostics() -> DiagnosticsResponse:
             "error_log": str(settings.LOGS_DIR / "error.log"),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Engine status & mode switching
+# ---------------------------------------------------------------------------
+
+class EngineModeRequest(BaseModel):
+    mode: str  # "mock" | "ace"
+
+
+@router.get("/api/engine/status")
+async def get_engine_status() -> dict:
+    """Current engine mode with readiness details for the UI."""
+    diag = get_engine_diagnostics()
+    return {
+        "success": True,
+        "data": {
+            "current_mode": settings.ENGINE_MODE,
+            "ready": diag.get("ready", False),
+            "details": diag.get("details", {}),
+        },
+    }
+
+
+@router.post("/api/engine/mode")
+async def set_engine_mode(body: EngineModeRequest) -> dict:
+    """Switch ENGINE_MODE immediately (hot-swap) and persist to .env."""
+    allowed = {"mock", "ace"}
+    if body.mode not in allowed:
+        raise HTTPException(status_code=400, detail=f"Ungültiger Modus. Erlaubt: {allowed}")
+
+    # Hot-swap in memory first – get_engine_adapter() reads settings.ENGINE_MODE
+    # dynamically so this takes effect for all subsequent requests immediately.
+    settings.ENGINE_MODE = body.mode
+
+    # Persist to .env so the change survives a restart.
+    env_path = settings.PROJECT_ROOT / ".env"
+    if env_path.exists():
+        content = env_path.read_text(encoding="utf-8")
+        content = re.sub(r"(?m)^ENGINE_MODE=.*$", f"ENGINE_MODE={body.mode}", content)
+        content = re.sub(r"(?m)^ENGINE_TYPE=.*$", f"ENGINE_TYPE={body.mode}", content)
+        env_path.write_text(content, encoding="utf-8")
+
+    mode_label = "ACE-Step (Lokal)" if body.mode == "ace" else "Mock (Test-Modus)"
+    return {
+        "success": True,
+        "data": {
+            "mode": body.mode,
+            "requires_restart": False,
+            "message": f"Engine sofort auf '{mode_label}' umgeschaltet.",
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Engine profiles
+# ---------------------------------------------------------------------------
+
+def _load_profiles() -> list[dict]:
+    profiles_dir = settings.PROJECT_ROOT / "data" / "profiles"
+    profiles = []
+    if profiles_dir.exists():
+        for p in sorted(profiles_dir.glob("*.json")):
+            try:
+                import json
+                profiles.append(json.loads(p.read_text(encoding="utf-8")))
+            except Exception:
+                pass
+    return profiles
+
+
+@router.get("/api/engine/profiles")
+async def get_engine_profiles() -> dict:
+    """Return all configured engine profiles."""
+    profiles = _load_profiles()
+    return {
+        "success": True,
+        "data": {
+            "active_profile": settings.ENGINE_PROFILE,
+            "profiles": profiles,
+        },
+    }
+
+
+class EngineProfileRequest(BaseModel):
+    profile_id: str
+
+
+@router.post("/api/engine/profile")
+async def set_engine_profile(body: EngineProfileRequest) -> dict:
+    """Switch ENGINE_PROFILE in .env. Requires backend restart."""
+    profiles = _load_profiles()
+    valid_ids = {p["id"] for p in profiles}
+    if body.profile_id not in valid_ids:
+        raise HTTPException(status_code=400, detail=f"Unbekanntes Profil '{body.profile_id}'. Verfügbar: {sorted(valid_ids)}")
+
+    profile = next(p for p in profiles if p["id"] == body.profile_id)
+    if not profile.get("available", False):
+        raise HTTPException(status_code=400, detail=f"Profil '{body.profile_id}' ist noch nicht verfügbar.")
+
+    env_path = settings.PROJECT_ROOT / ".env"
+    if not env_path.exists():
+        raise HTTPException(status_code=500, detail=".env nicht gefunden")
+
+    content = env_path.read_text(encoding="utf-8")
+    if re.search(r"(?m)^ENGINE_PROFILE=", content):
+        content = re.sub(r"(?m)^ENGINE_PROFILE=.*$", f"ENGINE_PROFILE={body.profile_id}", content)
+    else:
+        content += f"\nENGINE_PROFILE={body.profile_id}\n"
+    env_path.write_text(content, encoding="utf-8")
+
+    return {
+        "success": True,
+        "data": {
+            "profile_id": body.profile_id,
+            "requires_restart": True,
+            "message": f"Profil auf '{body.profile_id}' gesetzt. Backend neu starten um die Änderung zu aktivieren.",
+        },
+    }
 
 
 @router.get("/api/presets/track")

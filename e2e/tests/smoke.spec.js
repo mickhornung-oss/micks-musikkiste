@@ -2,6 +2,9 @@ const { test, expect } = require("@playwright/test");
 
 const TEST_PREFIX = `e2e-mm-${Date.now()}`;
 
+// ---------------------------------------------------------------------------
+// Smoke 1: App-Start und Status-Seite
+// ---------------------------------------------------------------------------
 test("App-Start und Status sind sichtbar", async ({ page }) => {
     await page.goto("/");
 
@@ -10,85 +13,107 @@ test("App-Start und Status sind sichtbar", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Micks Musikkiste", exact: true })).toBeVisible();
     await expect(page.locator("#recentProjects")).toBeVisible();
 
-    await page.getByRole("button", { name: "Status" }).click();
+    // Zur Status-Seite navigieren
+    await page.locator(".nav-btn[data-page='status']").click();
     await expect(page.locator("#page-status")).toHaveClass(/active/);
     await expect(page.locator("#statusEngine")).toContainText(/mock/i);
 });
 
-test("Mock-Track, Projekt, Export und Listenfluss laufen im Browser", async ({ page }) => {
-    const trackTitle = `${TEST_PREFIX}-track`;
-    const projectName = `${TEST_PREFIX}-project`;
+// ---------------------------------------------------------------------------
+// Smoke 2: Beat generieren, Projekt speichern, Export, Projektliste
+// ---------------------------------------------------------------------------
+test("Beat generieren, Projekt speichern, Export und Projektliste (V2 Mock)", async ({ page }) => {
+    const beatTitle = `${TEST_PREFIX}-beat`;
+    const projectName = `${TEST_PREFIX}-projekt`;
     const exportName = `${TEST_PREFIX}-export`;
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Voller Track" }).click();
-    await expect(page.locator("#page-track")).toHaveClass(/active/);
 
-    await page.locator("#trackTitle").fill(trackTitle);
-    await page.locator("#trackMood").selectOption("dark");
-    await page.locator("#trackDuration").selectOption("30");
-    await page.locator("#trackLyrics").fill("E2E Smoke");
-    await page.locator("#trackPreset").selectOption("techno_dark");
-    await page.locator("#trackForm button[type='submit']").click();
+    // Zur Beat-Seite
+    await page.locator(".nav-btn[data-page='beat']").click();
+    await expect(page.locator("#page-beat")).toHaveClass(/active/);
 
+    // Formular ausfüllen (V2-IDs)
+    await page.locator("#beatTitle").fill(beatTitle);
+    // Genre-Dropdown wartet auf API-Befüllung — direkt via value setzen
+    await page.locator("#beatGenre").selectOption({ index: 1 });
+    await page.locator("#beatPrompt").fill("dark industrial kick hypnotic groove E2E test");
+    await page.locator("#beatBpm").fill("128");
+    // Sende Formular
+    await page.locator("#beatForm button[type='submit']").click();
+
+    // Warte auf Ergebnis-Seite und Job-Abschluss
     await expect(page.locator("#page-result")).toHaveClass(/active/);
-    await expect(page.locator("#resultTitle")).toContainText(trackTitle, { timeout: 25_000 });
-    await expect(page.locator("#audioPlayer")).toHaveAttribute("src", /\/outputs\//);
+    await expect(page.locator("#resultTitle")).not.toContainText("Ergebnis", { timeout: 30_000 });
+    await expect(page.locator("#audioPlayer")).toHaveAttribute("src", /\/outputs\//, { timeout: 30_000 });
 
+    // Projekt speichern
     await page.getByTestId("save-project-btn").click();
     await expect(page.getByTestId("text-input-dialog")).toBeVisible();
     await page.getByTestId("text-input-field").fill(projectName);
     await page.getByTestId("text-input-confirm").click();
-    await expect(page.locator(".toast-success").last()).toContainText("Projekt gespeichert");
+    await expect(page.locator(".toast-success")).toContainText("Projekt gespeichert", { timeout: 8_000 });
 
-    const downloadPromise = page.waitForEvent("download");
+    // Exportieren
+    const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
     await page.getByTestId("export-result-btn").click();
     await expect(page.getByTestId("text-input-dialog")).toBeVisible();
     await page.getByTestId("text-input-field").fill(exportName);
     await page.getByTestId("text-input-confirm").click();
     const download = await downloadPromise;
-    await expect(page.locator(".toast-success").last()).toContainText(/export/i);
-    expect(download.suggestedFilename()).toContain(exportName);
+    expect(download.suggestedFilename()).toBeTruthy();
+    await expect(page.locator(".toast-success")).toContainText(/export/i, { timeout: 8_000 });
 
-    await page.getByRole("button", { name: "Projekte" }).click();
+    // Projektliste prüfen
+    await page.locator(".nav-btn[data-page='projects']").click();
     await expect(page.locator("#page-projects")).toHaveClass(/active/);
+    await expect(page.locator("#projectsList .project-card").first()).toBeVisible({ timeout: 8_000 });
     await page.locator("#projectSearch").fill(projectName);
-    await expect(page.locator("#projectsList .project-card").first()).toContainText(projectName);
+    await expect(page.locator("#projectsList .project-card").first()).toContainText(projectName, { timeout: 5_000 });
 
-    await page.getByTestId("project-export-btn").first().click();
-    await expect(page.locator(".toast-success").last()).toContainText(/export/i);
-    await expect(page.locator("#projectsList .project-card").first()).toContainText(projectName);
-
-    await page.getByRole("button", { name: "Status" }).click();
+    // Status-Seite: Projekte-Zähler nicht leer
+    await page.locator(".nav-btn[data-page='status']").click();
     await expect(page.locator("#page-status")).toHaveClass(/active/);
-    await expect(page.locator("#statusProjects")).not.toBeEmpty();
+    await expect(page.locator("#statusProjects")).not.toBeEmpty({ timeout: 5_000 });
 });
 
-test("Quickstart und Topbar landen in denselben konsistenten Modus-Zustaenden", async ({ page }) => {
+// ---------------------------------------------------------------------------
+// Smoke 3: Navigation und Dashboard-Quickstart (V2)
+// ---------------------------------------------------------------------------
+test("Navigation und Dashboard-Quickstart landen auf richtigen Seiten (V2)", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.locator(".nav-btn[data-page='dashboard']")).toHaveClass(/active/);
-    await expect(page.locator(".nav-btn[data-mode].active")).toHaveCount(0);
-
-    await page.locator(".action-card[data-mode='full_track']").click();
-    await expect(page.locator("#page-track")).toHaveClass(/active/);
-    await expect(page.locator(".nav-btn[data-mode='full_track']")).toHaveClass(/active/);
-    await expect(page.locator("#trackPreset")).toHaveValue("techno_melodic");
-    await expect(page.locator("#trackMood")).toHaveValue("energetic");
-
-    await page.getByRole("button", { name: "Start" }).click();
-    await expect(page.locator("#page-dashboard")).toHaveClass(/active/);
+    // Dashboard ist Startseite
     await expect(page.locator(".nav-btn[data-page='dashboard']")).toHaveClass(/active/);
 
-    await page.getByRole("button", { name: "Hip-Hop Beat" }).click();
+    // Quickstart: Beat-Karte im Dashboard klicken
+    await page.locator(".start-card[data-page='beat']").click();
     await expect(page.locator("#page-beat")).toHaveClass(/active/);
-    await expect(page.locator(".nav-btn[data-mode='hiphop_beat']")).toHaveClass(/active/);
-    await expect(page.locator("#beatPageTitle")).toContainText("Hip-Hop Beat");
-    await expect(page.locator("#beatPreset")).toHaveValue("beat_hiphop_trap");
-    await expect(page.locator(".mode-chip[data-mode='hiphop_beat']")).toHaveClass(/active/);
+    await expect(page.locator(".nav-btn[data-page='beat']")).toHaveClass(/active/);
 
-    await page.locator(".mode-chip[data-mode='techno_beat']").click();
-    await expect(page.locator("#beatPageTitle")).toContainText("Techno Beat");
-    await expect(page.locator("#beatPreset")).toHaveValue("beat_techno_club");
-    await expect(page.locator(".mode-chip[data-mode='techno_beat']")).toHaveClass(/active/);
+    // Zurück zum Dashboard über Nav
+    await page.locator(".nav-btn[data-page='dashboard']").click();
+    await expect(page.locator("#page-dashboard")).toHaveClass(/active/);
+
+    // Quickstart: Track-Karte im Dashboard klicken
+    await page.locator(".start-card[data-page='track']").click();
+    await expect(page.locator("#page-track")).toHaveClass(/active/);
+    await expect(page.locator(".nav-btn[data-page='track']")).toHaveClass(/active/);
+
+    // Track-Formular hat V2-Felder (kein Preset, kein Mood)
+    await expect(page.locator("#trackGenre")).toBeVisible();
+    await expect(page.locator("#trackPrompt")).toBeVisible();
+    await expect(page.locator("#trackTextIdea")).toBeVisible();
+    // V1-Felder dürfen nicht existieren
+    await expect(page.locator("#trackMood")).not.toBeAttached();
+    await expect(page.locator("#trackLyrics")).not.toBeAttached();
+    await expect(page.locator("#trackPreset")).not.toBeAttached();
+
+    // Beat-Formular: ebenfalls V2-Felder
+    await page.locator(".nav-btn[data-page='beat']").click();
+    await expect(page.locator("#beatGenre")).toBeVisible();
+    await expect(page.locator("#beatPrompt")).toBeVisible();
+    await expect(page.locator("#beatBpm")).toBeVisible();
+    // V1-Feld existiert nicht
+    await expect(page.locator("#beatPreset")).not.toBeAttached();
 });

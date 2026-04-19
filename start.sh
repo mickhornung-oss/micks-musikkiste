@@ -3,7 +3,7 @@
 
 echo ""
 echo "====================================="
-echo "  Micks Musikkiste - Start V1"
+echo "  Micks Musikkiste - Start V2"
 echo "====================================="
 echo ""
 
@@ -28,6 +28,7 @@ echo ""
 echo "[*] Starte Backend-Server..."
 echo "[*] Frontend: http://localhost:8000"
 echo "[*] API Docs: http://localhost:8000/docs"
+echo "[*] Hinweis: ENGINE_MODE=mock fuer lokalen V2-Flow empfohlen"
 echo ""
 
 python backend/run.py

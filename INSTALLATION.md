@@ -1,113 +1,108 @@
-# 🚀 Schnelle Installation - Windows
+# Installation und Start (V2, Windows)
 
-## Schritt 1: Projekt öffnen
+Diese Anleitung beschreibt den real getesteten lokalen Standardpfad.
+Empfohlen fuer den Einstieg: `ENGINE_MODE=mock`.
+
+## 1. In den Projektordner wechseln
 
 ```powershell
 cd C:\Users\mickh\Desktop\MicksMusikkiste
 ```
 
-## Schritt 2: Virtual Environment aktivieren
+## 2. Virtuelle Umgebung anlegen und aktivieren
 
 ```powershell
-.venv\Scripts\Activate.ps1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-**Erfolgreich wenn:** `(.venv)` am Anfang der Zeile steht
+Erwartung: Prompt startet mit `(.venv)`.
 
-## Schritt 3: Dependencies installieren
+## 3. Abhaengigkeiten installieren
 
 ```powershell
-pip install -r backend/requirements.txt
+pip install -r backend\requirements.txt
 ```
 
-## Schritt 4: Server starten
+## 4. Konfiguration anlegen
 
 ```powershell
-python backend/run.py
+copy backend\.env.example backend\.env
 ```
 
-**Erfolgreich wenn:**
-```
-╔════════════════════════════════════════╗
-║     Micks Musikkiste - Backend V1      ║
-╚════════════════════════════════════════╝
+Fuer lokalen Start in `backend/.env` mindestens setzen/pruefen:
 
-🎜 Server wird gestartet...
-
-Frontend:  http://localhost:8000
-API Docs:  http://localhost:8000/docs
-
-INFO:     Uvicorn running on http://127.0.0.1:8000
+```env
+ENGINE_MODE=mock
+DATABASE_URL=sqlite+aiosqlite:///./data/micks_musikkiste.db
+SERVER_HOST=127.0.0.1
+SERVER_PORT=8000
 ```
 
-## Schritt 5: Browser öffnen
+## 5. Datenbank-Migration ausfuehren
 
-**Öffne:** http://localhost:8000
-
-Fertig! 🎉
-
----
-
-## Schnellbefehle (Copy & Paste)
-
-### Kompletten Setup machen (one-liner)
 ```powershell
-cd C:\Users\mickh\Desktop\MicksMusikkiste; .venv\Scripts\Activate.ps1; pip install -r backend/requirements.txt; python backend/run.py
+python backend\scripts\migrate.py
 ```
 
-### Nur Server starten (wenn schon installiert)
+## 6. Server starten
+
 ```powershell
-cd C:\Users\mickh\Desktop\MicksMusikkiste; .venv\Scripts\Activate.ps1; python backend/run.py
+python backend\run.py
 ```
 
-### Windows Batch-Datei verwenden
-```powershell
-cd C:\Users\mickh\Desktop\MicksMusikkiste
-start.bat
-```
+Erwartung im Terminal:
+- "Micks Musikkiste backend is starting..."
+- URL-Hinweise fuer Frontend und Docs
+- Uvicorn auf `http://127.0.0.1:8000`
 
----
+## 7. Im Browser pruefen
 
-## Links
+- UI: `http://127.0.0.1:8000`
+- Docs: `http://127.0.0.1:8000/docs`
+- Health: `http://127.0.0.1:8000/health`
 
-- **Frontend:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
-- **API Root:** http://localhost:8000/api
+## Startskripte (optional)
 
----
+- `start.bat`
+- `start_app.bat`
+- `start_app.ps1`
+- `start.sh`
+- `Start_Micks_Musikkiste.cmd`
+
+Alle starten denselben Backend-Entry-Point: `python backend/run.py`.
+
+## Engine-Hinweise (wichtig)
+
+- Mock:
+	- sofort nutzbar
+	- fuer lokalen Funktionstest und E2E empfohlen
+- ACE:
+	- nur nutzbar, wenn ComfyUI/Workflow lokal erreichbar sind
+	- ohne laufende ComfyUI ist `ready=false`
+- MusicGen:
+	- noch nicht voll implementiert/verfuegbar
 
 ## Troubleshooting
 
-**"Python nicht gefunden"**
+"Python nicht gefunden"
 ```powershell
-# Nutzer Python 3.8+
 python --version
-
-# Falls nicht: Installiere von python.org
 ```
 
-**"Module nicht gefunden"**
+"Port 8000 bereits belegt"
 ```powershell
-# Stell sicher venv ist aktiviert
-.venv\Scripts\Activate.ps1
-
-# Dann reinstallieren
-pip install -r backend/requirements.txt
+Get-NetTCPConnection -LocalPort 8000 -State Listen
 ```
 
-**"Port 8000 schon in Benutzung"**
+"Module fehlen"
 ```powershell
-# Nutzer einen anderen Port
-python backend/run.py --port 8001
-# Dann: http://localhost:8001
+.\.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
 ```
 
-**"Access Denied bei Datei"**
+"Health nicht ok"
 ```powershell
-# Starte PowerShell als Admin
-# Oder change file permissions
+Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8000/api/diagnostics
 ```
-
----
-
-**Viel Spaß! 🎜**

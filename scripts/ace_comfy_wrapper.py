@@ -153,8 +153,12 @@ def apply_ace_overrides(
 ):
     output_prefix = build_output_prefix(output_path)
     saw_audio_output = False
+    seed = random.randint(1, 2**31 - 1)
+    duration_f = float(max(5, int(duration)))
     for node in prompt.values():
         class_type = node.get("class_type")
+
+        # --- legacy v1.0 custom nodes ---
         if class_type == "ACEModelLoader":
             inputs = node.setdefault("inputs", {})
             inputs["cpu_offload"] = True
@@ -183,6 +187,30 @@ def apply_ace_overrides(
                 "quality": "320k",
             }
             saw_audio_output = True
+            continue
+
+        # --- native ComfyUI ACE-Step 1.5 nodes ---
+        if class_type == "TextEncodeAceStepAudio1.5":
+            inputs = node.setdefault("inputs", {})
+            if inputs.get("tags") == "__MICKS_TAGS__":
+                # positive conditioning node
+                inputs["tags"] = build_prompt_text(title, tags)
+                inputs["lyrics"] = build_lyrics_text(title, lyrics, instrumental)
+                inputs["duration"] = duration_f
+                inputs["seed"] = seed
+            else:
+                # negative conditioning node — keep empty, sync duration
+                inputs["duration"] = duration_f
+            continue
+
+        if class_type == "EmptyAceStep1.5LatentAudio":
+            inputs = node.setdefault("inputs", {})
+            inputs["seconds"] = duration_f
+            continue
+
+        if class_type == "KSampler":
+            inputs = node.setdefault("inputs", {})
+            inputs["seed"] = seed
             continue
 
         if class_type in {"SaveAudio", "SaveAudioMP3", "SaveAudioOpus"}:
@@ -267,7 +295,11 @@ def run(
     instrumental: bool,
 ):
     workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
-    prompt = convert_workflow_to_prompt(workflow)
+    # Detect format: graph format has a "nodes" array; API format uses string-integer keys
+    if "nodes" in workflow:
+        prompt = convert_workflow_to_prompt(workflow)
+    else:
+        prompt = workflow
     apply_ace_overrides(prompt, duration, title, tags, lyrics, negative_prompts, instrumental, output_path)
 
     prompt_resp = http_json(

@@ -1,0 +1,12 @@
+{
+  "id": "ace_turbo",
+  "name": "ACE Turbo",
+  "description": "ACE-Step 1.5 Turbo — schnelle Generierung (8 Schritte), AIO-Modell",
+  "engine": "ace",
+  "available": true,
+  "workflow": "data/workflows/ace_step15_turbo.json",
+  "model": "vendor/ComfyUI/models/checkpoints/ace_step_1.5_turbo_aio.safetensors",
+  "steps": 8,
+  "duration_max": 300,
+  "notes": "Erfordert ComfyUI Desktop (Port 8188) mit extra_model_paths.yaml"
+}

@@ -79,7 +79,10 @@ class MusicGenerationService:
             duration = int(normalized.get("duration", 30))
         except Exception:
             duration = 30
-        duration = max(5, min(duration, 60))
+        # Respect the engine's configured max duration (default 300 s / 5 min).
+        # Do NOT hardcap at 60 – that silently discards the user's choice.
+        max_dur = settings.ACE_STEP_MAX_DURATION  # default 300
+        duration = max(5, min(duration, max_dur))
         normalized["duration"] = duration
         normalized["duration_effective"] = duration
         normalized["duration_requested"] = (

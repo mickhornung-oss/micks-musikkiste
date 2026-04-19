@@ -19,8 +19,10 @@ engine_kwargs = {
     "echo": settings.DEBUG,
     "pool_pre_ping": True,
 }
-if settings.ENGINE_MODE == "mock":
+# SQLite (aiosqlite) does not support pool_size / max_overflow — use NullPool
+if settings.DATABASE_URL.startswith("sqlite"):
     engine_kwargs["poolclass"] = NullPool
+    engine_kwargs.pop("pool_pre_ping", None)  # SQLite doesn't need pre-ping
 else:
     engine_kwargs["pool_size"] = settings.DATABASE_POOL_SIZE
     engine_kwargs["max_overflow"] = settings.DATABASE_MAX_OVERFLOW

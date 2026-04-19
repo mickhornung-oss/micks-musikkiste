@@ -1,0 +1,12 @@
+{
+  "id": "musicgen",
+  "name": "MusicGen",
+  "description": "Meta MusicGen — alternative Musik-KI (geplant)",
+  "engine": "musicgen",
+  "available": false,
+  "workflow": null,
+  "model": null,
+  "steps": null,
+  "duration_max": 120,
+  "notes": "Vorbereitet — Implementierung folgt in zukünftiger Version"
+}

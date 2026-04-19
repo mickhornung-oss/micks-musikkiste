@@ -1,114 +1,125 @@
-# Micks Musikkiste
+# Micks Musikkiste V2
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-09a031.svg)](https://fastapi.tiangolo.com/)
-[![Tests](https://github.com/mickhornung-oss/micks-musikkiste/actions/workflows/python-tests.yml/badge.svg)](https://github.com/mickhornung-oss/micks-musikkiste/actions)
 
-Live Demo: https://micks-musikkiste-production-834a.up.railway.app
+Lokales Musikstudio mit FastAPI-Backend und V2-Frontend fuer zwei Kernablaeufe:
+- Beat erstellen
+- Full Track erstellen
 
-AI music production studio backend with FastAPI, async PostgreSQL, queue-based job processing, and structured observability.
+Wichtiger Release-Hinweis: Dieses Repo ist auf ehrliche lokale Nutzung ausgelegt. Es gibt aktuell keine Aussage "alle Engines produktionsbereit".
 
-> **Deutsch:** Lokales KI-Musikstudio mit FastAPI-Backend, async PostgreSQL, Job-Queue und strukturiertem Observability-Layer.
+## Was V2 konkret ist
 
-## Architecture
+V2 trennt die Produktlogik klar von alten V1-Mustern:
+- V2-Endpunkte laufen unter `/api/v2/*`
+- Prompt ist das primaere Steuerfeld fuer Musik-Generierung
+- `negative_prompt` wird als Ausschlussliste verarbeitet
+- `text_idea` wird nur als Themen-Metadaten genutzt und nicht als direkte Lyrics uebergeben
+- Ergebnisse landen als Audio-Dateien in `data/outputs` und koennen als Projekte gespeichert/exportiert werden
 
-| Layer | Technology |
-|---|---|
-| Backend | FastAPI + SQLAlchemy Async + asyncpg |
-| Database | PostgreSQL (jobs, projects, export metadata) |
-| Job Queue | Background worker with status tracking |
-| Frontend | Static HTML/CSS/JS served by FastAPI |
-| Observability | Structured logging, `/health`, `/api/diagnostics` |
-| Engine Modes | `mock` / `ace` (ComfyUI) / `real` |
+## Engine-Status (ehrlich)
 
-## Quick Start
+- `mock`: nutzbar, lokale Testtoene fuer durchgehende Flows
+- `ace`: nur nutzbar, wenn lokale Voraussetzungen vorhanden sind (ComfyUI + Workflow + Erreichbarkeit)
+- `musicgen`: Adapter vorbereitet, aktuell nicht voll implementiert/verfuegbar
 
-```bash
-# 1. Install dependencies
-pip install -r backend/requirements.txt
+Wenn du sofort loslegen willst, nutze `ENGINE_MODE=mock`.
 
-# 2. Set environment variables (copy .env.example to .env)
-cp .env.example .env
+## Quick Start (Windows PowerShell)
 
-# 3. Initialize database
-python backend/scripts/migrate.py
-
-# 4. Start the app
-python backend/run.py
+```powershell
+cd C:\Users\mickh\Desktop\MicksMusikkiste
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+copy backend\.env.example backend\.env
+python backend\scripts\migrate.py
+python backend\run.py
 ```
 
-Live endpoints:
-- UI: `http://localhost:8000`
-- API docs: `http://localhost:8000/docs`
-- Health: `http://localhost:8000/health`
-- Diagnostics: `http://localhost:8000/api/diagnostics`
-- Version: `http://localhost:8000/api/version`
+Danach:
+- UI: `http://127.0.0.1:8000`
+- API Docs: `http://127.0.0.1:8000/docs`
+- Health: `http://127.0.0.1:8000/health`
+- Diagnostics: `http://127.0.0.1:8000/api/diagnostics`
 
-Production endpoints:
-- UI: `https://micks-musikkiste-production-834a.up.railway.app`
-- Health: `https://micks-musikkiste-production-834a.up.railway.app/health`
-- Diagnostics: `https://micks-musikkiste-production-834a.up.railway.app/api/diagnostics`
-- Version: `https://micks-musikkiste-production-834a.up.railway.app/api/version`
+## Voraussetzungen
 
-## Configuration
+- Python 3.9+
+- Virtuelle Umgebung (`.venv`)
+- Fuer Standardbetrieb: keine externe Engine noetig (`mock`)
+- Datenbank:
+	- lokal einfach: SQLite
+	- produktionsnaeher: PostgreSQL
 
-Set via environment variables or `.env` file:
+## Konfiguration
+
+Die App liest Umgebungsvariablen aus `backend/.env`.
+
+Minimal sinnvoll fuer lokalen V2-Start:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname
 ENGINE_MODE=mock
+DATABASE_URL=sqlite+aiosqlite:///./data/micks_musikkiste.db
 SERVER_HOST=127.0.0.1
 SERVER_PORT=8000
 LOG_LEVEL=info
-DEBUG=false
-APP_ENV=local
-RELEASE_VERSION=1.0.1
-RELEASE_SHA=local
 ```
 
-## Engine Modes
+Hinweis:
+- `ENGINE_TYPE` ist nur Legacy-Fallback. Verwende `ENGINE_MODE`.
 
-| Mode | Description |
-|---|---|
-| `mock` | Recommended for local dev, no external dependencies |
-| `ace` | Requires a running ComfyUI instance with ACE-Step workflow |
-| `real` | Uses the real engine runtime if available locally |
+## V2 API Ueberblick
 
-## Observability
+Kernendpunkte:
+- `POST /api/v2/beat/generate`
+- `POST /api/v2/track/generate`
+- `GET /api/v2/jobs/{job_id}`
+- `GET /api/v2/engine/status`
+- `GET /api/v2/genres`
+- `GET /api/v2/profiles`
+- `GET /api/v2/config`
+- `POST /api/v2/projects`
+- `GET /api/v2/projects`
 
-- `GET /health`: API status and release metadata
-- `GET /api/diagnostics`: database, engine, jobs, runtime, storage, logs
-- `release` block: `environment`, `version`, `sha`
-- `runtime` block: `started_at_utc`, `uptime_seconds`
-- Response headers: `X-Request-ID`, `X-Process-Time-Ms`
-- Log files: `logs/app.log`, `logs/error.log`
+Export bleibt ueber den bestehenden Projekt-Exportpfad verfuegbar:
+- `POST /api/projects/{project_id}/export`
 
-## Operations
+## Architektur in kurz
 
-- Runbook: [`docs/RUNBOOK.md`](docs/RUNBOOK.md)
-- Release checklist: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
-- Latest release notes: [`docs/releases/v1.0.1.md`](docs/releases/v1.0.1.md)
-- Incident template: [`docs/incidents/INCIDENT_TEMPLATE.md`](docs/incidents/INCIDENT_TEMPLATE.md)
-- Latest incident example: [`docs/incidents/INC-2026-04-16-ci-stability.md`](docs/incidents/INC-2026-04-16-ci-stability.md)
-- Deployment smoke check:
-
-```bash
-python scripts/smoke_check.py http://127.0.0.1:8000
-```
+- Frontend: statisches SPA (`frontend/index.html`, `frontend/js/app.js`)
+- Backend: FastAPI (`backend/app/main.py`)
+- Queue/Jobs: DB-basiert mit Worker
+- Storage:
+	- generierte Audios: `data/outputs`
+	- exportierte Audios: `data/exports`
+	- Projektdaten: `data/projects`
 
 ## Tests
 
-```bash
-# Unit + integration tests (requires PostgreSQL)
-.\.venv\Scripts\python -m pytest backend/tests -q
+```powershell
+# Backend Tests
+.\.venv\Scripts\python -m pytest backend\tests -v
 
-# Browser-level E2E smoke tests
-cd e2e && npm install && npx playwright install chromium && npm test
+# Browser Smoke (optional)
+cd e2e
+npm install
+npx playwright install chromium
+npm test
 ```
 
-## Known Limitations
+## Bekannte Grenzen
 
-- `ace` and `real` modes require a local ComfyUI installation
-- E2E suite runs against `mock` mode only
+- V2 ist funktional fuer lokale Flows, aber nicht als "alle Engines ready" zu verstehen.
+- `ace` ist von externer lokaler Runtime abhaengig.
+- `musicgen` ist noch kein vollstaendiger produktiver Pfad.
+- E2E Browser-Tests laufen sinnvoll mit `ENGINE_MODE=mock`.
 
+## Weitere Doku
+
+- Installation: `INSTALLATION.md`
+- Quick Reference: `QUICK_REFERENCE.md`
+- Architektur: `docs/ARCHITECTURE.md`
+- Release Checklist: `docs/RELEASE_CHECKLIST.md`

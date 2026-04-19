@@ -48,9 +48,10 @@ class Settings(BaseSettings):
     ENGINE_MODE: str = "mock"
     ENGINE_MOCK_DELAY: int = 2
     ENGINE_REAL_COMMAND: str = ""
-    ENGINE_TIMEOUT: int = 180
+    ENGINE_TIMEOUT: int = 600
+    ENGINE_PROFILE: str = "ace_turbo"
     ACE_STEP_COMMAND: str = "ace-step"
-    ACE_STEP_MAX_DURATION: int = 120
+    ACE_STEP_MAX_DURATION: int = 300
     COMFYUI_URL: str = "http://127.0.0.1:8188"
     COMFYUI_AUTOSTART: bool = True
     COMFYUI_START_TIMEOUT: int = 45
